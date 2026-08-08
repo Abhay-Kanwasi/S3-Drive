@@ -1,0 +1,203 @@
+
+
+name: Deploy to Preproduction S3 Explorer UI
+
+on:
+  push:
+    branches: [ "preproduction" ]
+
+env:
+  AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
+  ECR_REPOSITORY: green_s3_explorer_ui           # set this to your Amazon ECR repository name
+  ECS_SERVICE: tenvs3ui                  # set this to your Amazon ECS service name
+  ECS_CLUSTER: datapoemtestenv                 # set this to your Amazon ECS cluster name
+  ECS_TASK_DEFINITION: green_s3_explorer_ui # set this to the path to your Amazon ECS task definition
+                                               # file, e.g. .aws/task-definition.json
+  CONTAINER_NAME: green_s3_explorer_ui           # set this to the name of the container in the
+                                               # containerDefinitions section of your task definition
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: Preproduction
+
+    steps:
+    - name: Send Teams Notification - Deployment Started
+      run: |
+        curl -H "Content-Type: application/json" -d '{
+          "@type": "MessageCard",
+          "@context": "https://schema.org/extensions",
+          "summary": "${{ job.environment }} Deployment Started",
+          "themeColor": "0078D7",
+          "title": "🚀 ${{ job.environment }} Deployment Started",
+          "sections": [{
+            "facts": [
+              {
+                "name": "Repository:",
+                "value": "${{ github.repository }}"
+              },
+              {
+                "name": "Branch:",
+                "value": "${{ github.ref_name }}"
+              },
+              {
+                "name": "Commit:",
+                "value": "${{ github.sha }}"
+              },
+              {
+                "name": "Triggered by:",
+                "value": "${{ github.actor }}"
+              }
+            ]
+          }],
+          "potentialAction": [{
+            "@type": "OpenUri",
+            "name": "View Workflow Run",
+            "targets": [{
+              "os": "default",
+              "uri": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+          }]
+        }' ${{ secrets.TEAMS_WEBHOOK_URL }}
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build a docker container and
+        # push it to ECR so that it can
+        # be deployed to ECS.
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+        --build-arg NEXT_PUBLIC_HOSTNAME=https://green.datapoem.ai/api/v2 .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        
+
+    - name: Download task definition
+      run: |
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+          --query taskDefinition > task-definition.json
+
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        #task-definition: ${{ env.ECS_TASK_DEFINITION }}
+        task-definition: task-definition.json
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ steps.build-image.outputs.image }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Send Teams Notification - Deployment Success
+      if: success()
+      run: |
+        curl -H "Content-Type: application/json" -d '{
+          "@type": "MessageCard",
+          "@context": "https://schema.org/extensions",
+          "summary": "${{ job.environment }} Deployment Successful",
+          "themeColor": "28a745",
+          "title": "✅ ${{ job.environment }} Deployment Successful",
+          "sections": [{
+            "facts": [
+              {
+                "name": "Repository:",
+                "value": "${{ github.repository }}"
+              },
+              {
+                "name": "Branch:",
+                "value": "${{ github.ref_name }}"
+              },
+              {
+                "name": "Commit:",
+                "value": "${{ github.sha }}"
+              },
+              {
+                "name": "Deployed by:",
+                "value": "${{ github.actor }}"
+              },
+              {
+                "name": "Status:",
+                "value": "✅ Success"
+              }
+            ]
+          }],
+          "potentialAction": [{
+            "@type": "OpenUri",
+            "name": "View Workflow Run",
+            "targets": [{
+              "os": "default",
+              "uri": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+          }]
+        }' ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+    - name: Send Teams Notification - Deployment Failed
+      if: failure()
+      run: |
+        curl -H "Content-Type: application/json" -d '{
+          "@type": "MessageCard",
+          "@context": "https://schema.org/extensions",
+          "summary": "${{ job.environment }} Deployment Failed",
+          "themeColor": "dc3545",
+          "title": "❌ ${{ job.environment }} Deployment Failed",
+          "sections": [{
+            "facts": [
+              {
+                "name": "Repository:",
+                "value": "${{ github.repository }}"
+              },
+              {
+                "name": "Branch:",
+                "value": "${{ github.ref_name }}"
+              },
+              {
+                "name": "Commit:",
+                "value": "${{ github.sha }}"
+              },
+              {
+                "name": "Triggered by:",
+                "value": "${{ github.actor }}"
+              },
+              {
+                "name": "Status:",
+                "value": "❌ Failed"
+              }
+            ]
+          }],
+          "potentialAction": [{
+            "@type": "OpenUri",
+            "name": "View Workflow Run",
+            "targets": [{
+              "os": "default",
+              "uri": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+          }]
+        }' ${{ secrets.TEAMS_WEBHOOK_URL }}
