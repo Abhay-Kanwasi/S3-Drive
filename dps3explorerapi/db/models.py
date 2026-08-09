@@ -1,14 +1,11 @@
 """
-S3 Explorer domain models.
-
-Tables live in the schema configured by DB_SCHEMA (default: "datapoem").
-UAM tables (user_data, subscriber) are read-only from this service.
+S3 Explorer domain models — explorer schema.
 """
 
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, BigInteger, String, Boolean, DateTime, Index, JSON,
-    ForeignKey, Identity, TIMESTAMP, UniqueConstraint, func, text,
+    Column, Integer, BigInteger, String, Boolean, DateTime, JSON,
+    ForeignKey, Identity, UniqueConstraint, func, text,
 )
 from sqlalchemy.orm import relationship
 from db.postgresdb import Base
@@ -17,28 +14,37 @@ from core.config import settings
 SCHEMA = settings.DB_SCHEMA
 
 
-# ---------------------------------------------------------------------------
-# New tables for the multi-tenant S3 Explorer
-# ---------------------------------------------------------------------------
-
-class Org(Base):
-    """
-    One row per onboarded organization.
-    Maps a UAM subscriber to an S3 bucket.
-    """
-    __tablename__ = "s3_org"
+class Organization(Base):
+    """One row per onboarded organization / S3 bucket binding."""
+    __tablename__ = "organizations"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    subscription_id = Column(String(255), nullable=False, unique=True, index=True)
-    org_name = Column(String(255), nullable=False)
-    bucket_name = Column(String(255), nullable=False, unique=True)
-    region = Column(String(63), nullable=False, server_default=text("'us-east-1'"))
-    max_upload_size_bytes = Column(BigInteger, nullable=False, server_default=text("5368709120"))
-    is_active = Column(Boolean, nullable=False, server_default=text("true"))
-    onboarded_by = Column(Integer, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    id                    = Column(BigInteger, Identity(start=1), primary_key=True)
+    org_key               = Column(String(255), nullable=False, unique=True, index=True)
+    org_name              = Column(String(255), nullable=False)
+    bucket_name           = Column(String(255), unique=True, nullable=True)
+    region                = Column(String(63),  nullable=False, server_default=text("'us-east-1'"))
+    max_upload_size_bytes = Column(BigInteger,   nullable=False, server_default=text("5368709120"))
+    onboarded_by          = Column(BigInteger,   ForeignKey(f"{SCHEMA}.users.id", ondelete="SET NULL"), nullable=True)
+    is_active             = Column(Boolean,      nullable=False, server_default=text("true"))
+    onboarded_at          = Column(DateTime(timezone=True), nullable=True)
+    created_at            = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at            = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class User(Base):
+    """Owned identity. role: 1=admin 2=user 3=master_admin 4=super_admin."""
+    __tablename__ = "users"
+    __table_args__ = {"schema": SCHEMA}
+
+    id              = Column(BigInteger, Identity(start=1), primary_key=True)
+    username        = Column(String(255), nullable=False)
+    email           = Column(String(255), nullable=False, unique=True, index=True)
+    role            = Column(Integer, nullable=False, server_default=text("2"))
+    organization_id = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id", ondelete="SET NULL"), nullable=True, index=True)
+    active          = Column(Boolean, nullable=False, server_default=text("true"))
+    created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at      = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
 class FolderMetadata(Base):
@@ -46,144 +52,131 @@ class FolderMetadata(Base):
     __tablename__ = "s3_folder_metadata"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    org_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_org.id"), nullable=False, index=True)
-    key = Column(String(1024), nullable=False)
-    created_by = Column(Integer, nullable=False)
+    id              = Column(BigInteger, Identity(start=1), primary_key=True)
+    org_id          = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id"), nullable=False, index=True)
+    key             = Column(String(1024), nullable=False)
+    created_by      = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
     created_by_role = Column(String(20), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class UserGroup(Base):
-    """
-    Permission group scoped to an org.
-    Name is always dp- prefixed (enforced by API, not DB).
-    """
+    """Permission group scoped to an org."""
     __tablename__ = "s3_user_group"
     __table_args__ = (
         UniqueConstraint("org_id", "name", name="uq_group_org_name"),
         {"schema": SCHEMA},
     )
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    org_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_org.id"), nullable=False, index=True)
-    name = Column(String(255), nullable=False)
-    created_by = Column(Integer, nullable=False)
-    requires_delete_approval = Column(
-        Boolean, nullable=False, server_default=text("false"),
-        doc="Set when group ever had folder grants; delete requires email approval.",
-    )
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    id                       = Column(BigInteger, Identity(start=1), primary_key=True)
+    org_id                   = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id"), nullable=False, index=True)
+    name                     = Column(String(255), nullable=False)
+    created_by               = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
+    requires_delete_approval = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at               = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at               = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    org = relationship("Org", backref="groups", lazy="joined")
+    org     = relationship("Organization", backref="groups", lazy="joined")
     members = relationship("GroupMembership", back_populates="group", cascade="all, delete-orphan")
-    grants = relationship("FolderGrant", back_populates="group", cascade="all, delete-orphan")
+    grants  = relationship("FolderGrant",     back_populates="group", cascade="all, delete-orphan")
 
 
 class GroupMembership(Base):
-    """Links users to groups. A user can belong to multiple groups."""
+    """Links users to groups."""
     __tablename__ = "s3_group_membership"
     __table_args__ = (
         UniqueConstraint("group_id", "user_id", name="uq_group_user"),
         {"schema": SCHEMA},
     )
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    group_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_user_group.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    added_by = Column(Integer, nullable=False)
+    id       = Column(BigInteger, Identity(start=1), primary_key=True)
+    group_id = Column(BigInteger, ForeignKey(f"{SCHEMA}.s3_user_group.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id  = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False, index=True)
+    added_by = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
     added_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     group = relationship("UserGroup", back_populates="members")
 
 
 class FolderGrant(Base):
-    """
-    Maps a group to a folder prefix with an access level.
-    Grant on 'A/' recursively covers 'A/B/', 'A/B/C/', etc.
-    """
+    """Maps a group to a folder prefix with an access level."""
     __tablename__ = "s3_folder_grant"
     __table_args__ = (
         UniqueConstraint("group_id", "prefix", name="uq_grant_group_prefix"),
         {"schema": SCHEMA},
     )
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    group_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_user_group.id", ondelete="CASCADE"), nullable=False, index=True)
-    org_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_org.id"), nullable=False, index=True)
-    prefix = Column(String(1024), nullable=False)
+    id           = Column(BigInteger, Identity(start=1), primary_key=True)
+    group_id     = Column(BigInteger, ForeignKey(f"{SCHEMA}.s3_user_group.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id       = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id"), nullable=False, index=True)
+    prefix       = Column(String(1024), nullable=False)
     access_level = Column(String(20), nullable=False, server_default=text("'read'"))
-    created_by = Column(Integer, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_by   = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
+    created_at   = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     group = relationship("UserGroup", back_populates="grants")
-    org = relationship("Org")
-
+    org   = relationship("Organization")
 
 
 class S3UserDeactivation(Base):
-    """
-    S3 Explorer–scoped deactivation only.
-    Does not change UAM user_data.active; UAM deactivation is read from user_data on auth.
-    """
+    """Explorer-scoped deactivation only (separate from users.active)."""
     __tablename__ = "s3_user_deactivation"
     __table_args__ = {"schema": SCHEMA}
 
-    user_id = Column(Integer, primary_key=True)
+    user_id        = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), primary_key=True)
     deactivated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    deactivated_by = Column(Integer, nullable=False)
+    deactivated_by = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
 
 
 class AdminOtpChallenge(Base):
-    """Hashed OTP for sensitive admin actions (e.g. group delete with active grants)."""
+    """Hashed OTP for sensitive admin actions."""
     __tablename__ = "s3_admin_otp"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    purpose = Column(String(64), nullable=False, server_default=text("'sensitive_action'"))
-    code_hash = Column(String(255), nullable=False)
+    id         = Column(BigInteger, Identity(start=1), primary_key=True)
+    user_id    = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False, index=True)
+    purpose    = Column(String(64),  nullable=False, server_default=text("'sensitive_action'"))
+    code_hash  = Column(String(255), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    used_at = Column(DateTime(timezone=True), nullable=True)
+    used_at    = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class UnonboardRequest(Base):
-    """4-eyes workflow to remove an onboarded org binding (org row deleted on approve)."""
+    """4-eyes workflow to remove an onboarded org binding."""
     __tablename__ = "s3_unonboard_request"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    org_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_org.id", ondelete="SET NULL"), nullable=True, index=True)
-    org_name = Column(String(255), nullable=True)
-    bucket_name = Column(String(255), nullable=True)
-    subscription_id = Column(String(255), nullable=True)
-    requester_user_id = Column(Integer, nullable=False)
-    approver_user_id = Column(Integer, nullable=False)
-    status = Column(String(32), nullable=False, server_default=text("'pending_approval'"))
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    id                = Column(BigInteger, Identity(start=1), primary_key=True)
+    org_id            = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id", ondelete="SET NULL"), nullable=True, index=True)
+    org_name          = Column(String(255), nullable=True)
+    bucket_name       = Column(String(255), nullable=True)
+    org_key           = Column(String(255), nullable=True)
+    requester_user_id = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
+    approver_user_id  = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
+    status            = Column(String(32), nullable=False, server_default=text("'pending_approval'"))
+    expires_at        = Column(DateTime(timezone=True), nullable=False)
+    resolved_at       = Column(DateTime(timezone=True), nullable=True)
+    created_at        = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    org = relationship("Org", lazy="joined")
+    org = relationship("Organization", lazy="joined")
 
 
 class AdminApprovalRequest(Base):
-    """Email approve/reject links for sensitive admin actions."""
+    """Email approve/reject tokens for sensitive admin actions."""
     __tablename__ = "s3_admin_approval"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    purpose = Column(String(64), nullable=False)
-    requester_user_id = Column(Integer, nullable=False)
-    approver_user_id = Column(Integer, nullable=False)
+    id                 = Column(BigInteger, Identity(start=1), primary_key=True)
+    purpose            = Column(String(64),  nullable=False)
+    requester_user_id  = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
+    approver_user_id   = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
     approve_token_hash = Column(String(255), nullable=False)
-    reject_token_hash = Column(String(255), nullable=False)
-    status = Column(String(20), nullable=False, server_default=text("'pending'"))
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reject_token_hash  = Column(String(255), nullable=False)
+    status             = Column(String(20),  nullable=False, server_default=text("'pending'"))
+    expires_at         = Column(DateTime(timezone=True), nullable=False)
+    resolved_at        = Column(DateTime(timezone=True), nullable=True)
+    created_at         = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class UserNotification(Base):
@@ -191,54 +184,14 @@ class UserNotification(Base):
     __tablename__ = "s3_user_notification"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    org_id = Column(Integer, ForeignKey(f"{SCHEMA}.s3_org.id"), nullable=False)
-    type = Column(String(50), nullable=False)
-    title = Column(String(200), nullable=False)
-    message = Column(String(500), nullable=False)
-    is_read = Column(Boolean, nullable=False, server_default=text("false"))
+    id         = Column(BigInteger, Identity(start=1), primary_key=True)
+    user_id    = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False, index=True)
+    org_id     = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id"), nullable=False)
+    type       = Column(String(50),  nullable=False)
+    title      = Column(String(200), nullable=False)
+    message    = Column(String(500), nullable=False)
+    is_read    = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-
-# ---------------------------------------------------------------------------
-# Legacy tables (kept for backward compatibility during migration)
-# ---------------------------------------------------------------------------
-
-class Explorer(Base):
-    __tablename__ = "s3_explorer"
-    __table_args__ = {"schema": "rhymedatapoem"}
-
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False)
-    bucket_name = Column(String, nullable=False)
-    folder_name = Column(String, nullable=False)
-    folder_path = Column(String, nullable=False)
-    relative_path = Column(String, nullable=False)
-    is_admin = Column(Boolean, nullable=False, default=False)
-
-
-class ExplorerAction(Base):
-    __tablename__ = "s3_explorer_logs"
-    __table_args__ = {"schema": "rhymedatapoem"}
-
-    id = Column(Integer, Identity(start=2), primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False)
-    action = Column(String, nullable=False)
-    path = Column(String, nullable=False)
-    filename = Column(String, nullable=False)
-    timestamp = Column(TIMESTAMP(timezone=False), server_default=func.now())
-
-
-class TokenRepository(Base):
-    __tablename__ = "s3_access"
-    __table_args__ = {"schema": "rhymedatapoem"}
-
-    id = Column(Integer, Identity(start=1), primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False)
-    token = Column(String, nullable=False)
-    timestamp = Column(TIMESTAMP(timezone=False), server_default=func.now())
-    is_expired = Column(Boolean, nullable=False)
 
 
 class PlatformSettings(Base):

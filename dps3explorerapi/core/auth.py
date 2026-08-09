@@ -62,7 +62,7 @@ ROLE_LABELS = {
 
 ADMIN_ROLE_IDS = {ROLE_ADMIN, ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN}
 
-# Global admins can access any org (cross-org). Org admins (role 1) are org-scoped.
+# Global admins can access any org (cross-org). Organization admins (role 1) are org-scoped.
 GLOBAL_ADMIN_ROLE_IDS = {ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN}
 
 

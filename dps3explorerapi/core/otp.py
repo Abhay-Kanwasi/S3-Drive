@@ -19,7 +19,7 @@ from core.auth import (
 )
 from core.config import settings
 from core.smtp_email import send_smtp_html, smtp_configured
-from db.models import AdminOtpChallenge, Org
+from db.models import AdminOtpChallenge, Organization
 from models.email_templates.otp import otp_email_body
 
 logger = logging.getLogger(__name__)
@@ -42,8 +42,8 @@ def _approver_dict(u: UAMUser, *, is_onboarder: bool = False) -> dict:
 
 
 def list_otp_approvers(db: Session, org_id: int, actor: CurrentUser) -> List[dict]:
-    """Org admins for this org + the user who onboarded it (not all global master admins)."""
-    org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+    """Organization admins for this org + the user who onboarded it (not all global master admins)."""
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found.")
 

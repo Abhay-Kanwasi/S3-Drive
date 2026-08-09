@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.auth import CurrentUser, ADMIN_ROLE_IDS
-from db.models import GroupMembership, FolderGrant, UserGroup, Explorer
+from db.models import GroupMembership, FolderGrant, UserGroup
 
 
 def get_user_granted_prefixes(
@@ -51,8 +51,9 @@ def _user_has_any_memberships(user_id: int, org_id: int, db: Session) -> bool:
 
 
 def _user_has_legacy_access(user_id: int, db: Session) -> bool:
-    """Fallback: check if the user has any rows in legacy s3_explorer."""
-    return db.query(Explorer.id).filter(Explorer.user_id == user_id).first() is not None
+    # TODO: restore when auth is implemented
+    # return db.query(Explorer.id).filter(Explorer.user_id == user_id).first() is not None
+    return False
 
 
 def check_prefix_access(

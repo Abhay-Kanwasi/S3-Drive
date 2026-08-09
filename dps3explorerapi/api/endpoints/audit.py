@@ -54,13 +54,13 @@ EVENT_TYPE_LABELS = {
     "FILE_COPIED": "File Copied",
     "FILE_MOVED": "File Moved",
     "FILE_VIEWED": "File Viewed",
-    "ORG_ONBOARDED": "Org Onboarded",
+    "ORG_ONBOARDED": "Organization Onboarded",
     "GROUP_CREATED": "Group Created",
     "GROUP_RENAMED": "Group Renamed",
     "GROUP_DELETED": "Group Deleted",
-    "ORG_UNONBOARD_OTP_SENT": "Org Un-onboard OTP Sent",
-    "ORG_UNONBOARD_INITIATED": "Org Un-onboard Initiated",
-    "ORG_UNONBOARD_APPROVED": "Org Un-onboard Approved",
+    "ORG_UNONBOARD_OTP_SENT": "Organization Un-onboard OTP Sent",
+    "ORG_UNONBOARD_INITIATED": "Organization Un-onboard Initiated",
+    "ORG_UNONBOARD_APPROVED": "Organization Un-onboard Approved",
     "MEMBER_ADDED": "Member Added",
     "MEMBER_REMOVED": "Member Removed",
     "GRANT_CREATED": "Grant Created",
@@ -241,7 +241,7 @@ def _resolve_names(events: list[dict]) -> list[dict]:
 
     if user_ids or org_ids:
         from db.postgresdb import get_db as _get_db_gen
-        from db.models import Org
+        from db.models import Organization
         from core.auth import UAMUser
         db = next(_get_db_gen())
         try:
@@ -251,7 +251,7 @@ def _resolve_names(events: list[dict]) -> list[dict]:
                 ).all()
                 user_map = {r.id: r.user_name or r.email or str(r.id) for r in rows}
             if org_ids:
-                rows = db.query(Org.id, Org.org_name).filter(Org.id.in_(org_ids)).all()
+                rows = db.query(Organization.id, Organization.org_name).filter(Organization.id.in_(org_ids)).all()
                 org_map = {r.id: r.org_name for r in rows}
         finally:
             db.close()
@@ -269,7 +269,7 @@ def _resolve_names(events: list[dict]) -> list[dict]:
 def _resolve_org_scope(user: CurrentUser, requested_org_id: Optional[int]):
     """Return (is_global_admin, scoped_org_id, scoped_org_folder_name)."""
     from db.postgresdb import get_db as _get_db_gen
-    from db.models import Org
+    from db.models import Organization
 
     is_global = user.role_id in GLOBAL_ADMIN_ROLE_IDS
     scoped_org_id = requested_org_id
@@ -278,18 +278,18 @@ def _resolve_org_scope(user: CurrentUser, requested_org_id: Optional[int]):
     db = next(_get_db_gen())
     try:
         if not is_global:
-            own_org = db.query(Org).filter(
-                Org.subscription_id == user.subscription_id,
-                Org.is_active == True,
+            own_org = db.query(Organization).filter(
+                Organization.subscription_id == user.subscription_id,
+                Organization.is_active == True,
             ).first()
             if not own_org:
                 return is_global, -1, "__missing_org__"
             return is_global, own_org.id, _normalize_org_folder(own_org.org_name, own_org.id)
 
         if requested_org_id:
-            target_org = db.query(Org).filter(
-                Org.id == requested_org_id,
-                Org.is_active == True,
+            target_org = db.query(Organization).filter(
+                Organization.id == requested_org_id,
+                Organization.is_active == True,
             ).first()
             if not target_org:
                 return is_global, requested_org_id, "__missing_org__"
@@ -428,7 +428,7 @@ async def export_audit_csv(
         writer.writerow([f"# WARNING: Results capped at {MAX_EXPORT_KEYS} files. Narrow date range for complete export."])
     writer.writerow([
         "Timestamp", "User", "User ID", "Event Type", "Description",
-        "Source Path", "Destination Path", "Org", "Org ID", "IP", "Details JSON",
+        "Source Path", "Destination Path", "Organization", "Organization ID", "IP", "Details JSON",
     ])
     for ev in events:
         details = ev.get("details") or {}

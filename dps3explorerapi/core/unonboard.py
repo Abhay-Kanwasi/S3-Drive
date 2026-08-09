@@ -36,7 +36,7 @@ from db.models import (
     FolderGrant,
     FolderMetadata,
     GroupMembership,
-    Org,
+    Organization,
     UnonboardRequest,
     UserGroup,
     UserNotification,
@@ -121,7 +121,7 @@ def send_requester_otp(db: Session, *, org_id: int, requester: CurrentUser) -> d
     if requester.role_id not in GLOBAL_ADMIN_ROLE_IDS:
         raise HTTPException(status_code=403, detail="Only master or super admins can un-onboard.")
 
-    org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found or already inactive.")
 
@@ -199,7 +199,7 @@ def create_unonboard_request(
     if requester.role_id not in GLOBAL_ADMIN_ROLE_IDS:
         raise HTTPException(status_code=403, detail="Only master or super admins can un-onboard.")
 
-    org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found or already inactive.")
 
@@ -281,7 +281,7 @@ def unonboard_summary(db: Session, request_id: int) -> dict:
         return {}
     org = None
     if req.org_id:
-        org = req.org or db.query(Org).filter(Org.id == req.org_id).first()
+        org = req.org or db.query(Organization).filter(Organization.id == req.org_id).first()
     org_name = (org.org_name if org else None) or req.org_name
     bucket_name = (org.bucket_name if org else None) or req.bucket_name
     if not org_name or not bucket_name:
@@ -324,8 +324,8 @@ def apply_unonboard(db: Session, request_id: int) -> tuple:
         )
 
     org = (
-        db.query(Org)
-        .filter(Org.id == req.org_id, Org.is_active == True)
+        db.query(Organization)
+        .filter(Organization.id == req.org_id, Organization.is_active == True)
         .first()
         if req.org_id
         else None
@@ -357,5 +357,5 @@ def reject_unonboard_request(db: Session, request_id: int) -> str:
     if req.status == STATUS_PENDING:
         req.status = STATUS_REJECTED
         req.resolved_at = now
-    org = req.org or (db.query(Org).filter(Org.id == req.org_id).first() if req.org_id else None)
+    org = req.org or (db.query(Organization).filter(Organization.id == req.org_id).first() if req.org_id else None)
     return (org.org_name if org else None) or req.org_name or "the organization"

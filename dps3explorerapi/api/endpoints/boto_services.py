@@ -14,10 +14,11 @@ from db.boto_core import (
 )
 from db.postgresdb import get_db
 from models.request.request import Folder, Initiate
-from db.models import TokenRepository, Explorer, Org, FolderMetadata, PlatformSettings
+from db.models import Organization, FolderMetadata, PlatformSettings
+# TODO: restore when auth is implemented
+# from db.models import Explorer, TokenRepository
 from core.audit import audit_log, audit_actor_fields
 from datetime import datetime
-from core.utils import get_all_folders_from_user_id
 import boto3
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS
 from core.config import settings
@@ -28,37 +29,14 @@ router = APIRouter()
 
 
 def _resolve_bucket(user_id: int, base_path: str, db: Session = None) -> str:
-    """Resolve bucket name from legacy s3_explorer rows or org table.
-
-    Resolution order:
-    1. Match folder_path in s3_explorer (legacy behavior)
-    2. Match bucket_name in s3_explorer (org-aware basePath = bucket_name)
-    3. Match bucket_name in Org table (group-only users with no legacy entries)
-    """
-    if db is not None:
-        folders = db.query(Explorer).filter(Explorer.user_id == user_id).all()
-    else:
-        folders = get_all_folders_from_user_id(user_id)
-
-    # 1. Legacy: exact folder_path match
-    matches = [f for f in folders if f.folder_path == base_path]
-    if matches:
-        return matches[0].bucket_name
-
-    # 2. Org-aware: basePath is the bucket_name itself
-    matches = [f for f in folders if f.bucket_name == base_path]
-    if matches:
-        return matches[0].bucket_name
-
-    # 3. Org table fallback: for users with no s3_explorer entries
+    """Resolve bucket name from organizations table."""
     if db and base_path:
-        org = db.query(Org).filter(Org.bucket_name == base_path, Org.is_active == True).first()
+        org = db.query(Organization).filter(Organization.bucket_name == base_path, Organization.is_active == True).first()
         if org:
             return org.bucket_name
-
     raise HTTPException(
         status_code=404,
-        detail="No matching folder configuration found. Please use the organization explorer.",
+        detail="No matching organization found for this path.",
     )
 
 
@@ -135,8 +113,8 @@ def create_folders(folder: Folder, user: CurrentUser = Depends(get_current_user)
                 status_code=403,
                 detail="Users can only create subfolders inside admin-created folders",
             )
-        org = db.query(Org).filter(
-            Org.bucket_name == bucket_name, Org.is_active == True
+        org = db.query(Organization).filter(
+            Organization.bucket_name == bucket_name, Organization.is_active == True
         ).first()
         if not org:
             raise HTTPException(
@@ -152,8 +130,8 @@ def create_folders(folder: Folder, user: CurrentUser = Depends(get_current_user)
 
     # Track ownership in FolderMetadata (same as new /folders/create endpoint)
     folder_key = folder.name if folder.name.endswith("/") else folder.name + "/"
-    org = db.query(Org).filter(
-        Org.bucket_name == bucket_name, Org.is_active == True
+    org = db.query(Organization).filter(
+        Organization.bucket_name == bucket_name, Organization.is_active == True
     ).first()
     if org:
         existing_meta = db.query(FolderMetadata).filter(
@@ -194,8 +172,8 @@ async def get_all_content_v2(folder: Folder, user: CurrentUser = Depends(get_cur
     bucket_name = _resolve_bucket(user.id, folder.basePath, db)
 
     if user.role_id not in ADMIN_ROLE_IDS:
-        org = db.query(Org).filter(
-            Org.bucket_name == bucket_name, Org.is_active == True
+        org = db.query(Organization).filter(
+            Organization.bucket_name == bucket_name, Organization.is_active == True
         ).first()
         if org:
             check_prefix_access(user, org.id, folder.name, db, require_write=False)
@@ -279,8 +257,8 @@ async def initiate(initiate: Initiate, request: Request, user: CurrentUser = Dep
                 status_code=403,
                 detail="Users cannot upload files at the bucket root level",
             )
-        org = db.query(Org).filter(
-            Org.bucket_name == bucket_name, Org.is_active == True
+        org = db.query(Organization).filter(
+            Organization.bucket_name == bucket_name, Organization.is_active == True
         ).first()
         if not org:
             raise HTTPException(
@@ -299,7 +277,7 @@ async def initiate(initiate: Initiate, request: Request, user: CurrentUser = Dep
         org_id = org.id if org else None
         org_name = org.org_name if org else None
     else:
-        found_org = db.query(Org).filter(Org.bucket_name == bucket_name, Org.is_active == True).first()
+        found_org = db.query(Organization).filter(Organization.bucket_name == bucket_name, Organization.is_active == True).first()
         org_id = found_org.id if found_org else None
         org_name = found_org.org_name if found_org else None
 
@@ -346,7 +324,7 @@ def finalised(
     tag = complete_upload(
         finalised.file_key, finalised.uploadID, finalised.e_tag, bucket_name
     )
-    org = db.query(Org).filter(Org.bucket_name == bucket_name, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.bucket_name == bucket_name, Organization.is_active == True).first()
     audit_log(
         event_type="FILE_UPLOADED",
         target_key=finalised.file_key,
@@ -391,8 +369,8 @@ async def uploadFiles(
                 status_code=403,
                 detail="Users cannot upload files at the bucket root level",
             )
-        org = db.query(Org).filter(
-            Org.bucket_name == settings.BUCKET, Org.is_active == True
+        org = db.query(Organization).filter(
+            Organization.bucket_name == settings.BUCKET, Organization.is_active == True
         ).first()
         if not org:
             raise HTTPException(
@@ -409,7 +387,7 @@ async def uploadFiles(
     org_id = org.id if org else None
     org_name = org.org_name if org else None
     if not org:
-        found_org = db.query(Org).filter(Org.bucket_name == settings.BUCKET, Org.is_active == True).first()
+        found_org = db.query(Organization).filter(Organization.bucket_name == settings.BUCKET, Organization.is_active == True).first()
         if found_org:
             org_id = found_org.id
             org_name = found_org.org_name
@@ -431,12 +409,12 @@ async def uploadFiles(
 
 @router.post("/delete")
 def delete_by_filename(deleteReq: DeleteReq, request: Request, user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    from db.models import Org
+    from db.models import Organization
     from core.config import settings
 
     bucket_name = _resolve_bucket(user.id, deleteReq.basePath, db)
 
-    org = db.query(Org).filter(Org.bucket_name == bucket_name, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.bucket_name == bucket_name, Organization.is_active == True).first()
 
     if org and user.role_id not in ADMIN_ROLE_IDS:
         file_parts = [p for p in deleteReq.file_key.split("/") if p]
@@ -571,24 +549,26 @@ def download(
 
 @router.get("/restore")
 async def restore_items(key: str, user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    user_record = db.query(Explorer).filter(Explorer.user_id == user.id).all()
-    if user_record is not None:
-        boto = TrashBOTO()
-        content: list = boto.restore_item(key=key)
-        return "OK"
+    # TODO: restore Explorer check when auth is implemented
+    # user_record = db.query(Explorer).filter(Explorer.user_id == user.id).all()
+    # if user_record is not None:
+    boto = TrashBOTO()
+    boto.restore_item(key=key)
+    return "OK"
 
 
 @router.get("/recycle")
 def get_recycle_bin(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    user_record = db.query(Explorer).filter(Explorer.user_id == user.id).all()
-    if user_record is not None:
-        boto = TrashBOTO()
-        content: list = boto.get_all_trash_items(key=str(user.id))
-        response = dict()
-        response["content"] = content
-        response["key"] = ["Trash"]
-        response["path"] = "Trash"
-        return response
+    # TODO: restore Explorer check when auth is implemented
+    # user_record = db.query(Explorer).filter(Explorer.user_id == user.id).all()
+    # if user_record is not None:
+    boto = TrashBOTO()
+    content: list = boto.get_all_trash_items(key=str(user.id))
+    response = dict()
+    response["content"] = content
+    response["key"] = ["Trash"]
+    response["path"] = "Trash"
+    return response
 
 
 ################## integration APIS (own token auth) ###################
@@ -603,51 +583,56 @@ async def get_folders_v2_create(
     keyword: str,
     db: Session = Depends(get_db),
 ):
-    if keyword == "Explorer":
-        folder_access: Explorer = Explorer(
-            user_id=str(userid),
-            folder_name=folder_name,
-            folder_path=folder_path,
-            relative_path=relative_path,
-        )
-        db.add(folder_access)
-        db.commit()
-        return Response(status_code=status.HTTP_201_CREATED, content="Done")
-    else:
-        return Response(status_code=status.HTTP_403_FORBIDDEN, content="Forbidden")
+    # TODO: restore when auth is implemented
+    # if keyword == "Explorer":
+    #     folder_access: Explorer = Explorer(
+    #         user_id=str(userid),
+    #         folder_name=folder_name,
+    #         folder_path=folder_path,
+    #         relative_path=relative_path,
+    #     )
+    #     db.add(folder_access)
+    #     db.commit()
+    #     return Response(status_code=status.HTTP_201_CREATED, content="Done")
+    # else:
+    #     return Response(status_code=status.HTTP_403_FORBIDDEN, content="Forbidden")
+    return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED, content="Not implemented yet")
 
 
 @router.get("/v2/generate")
 async def generate_token_endpoint(userid: str, keyword: str, db: Session = Depends(get_db)):
-    if keyword == "Explorer":
-        generated_token = generate_token(32)
-        token: TokenRepository = TokenRepository(
-            user_id=int(userid), token=generated_token, is_expired=False
-        )
-        db.add(token)
-        db.commit()
-        return Response(status_code=status.HTTP_200_OK, content=generated_token)
-    return Response(status_code=status.HTTP_403_FORBIDDEN, content="Forbidden")
+    # TODO: restore when auth is implemented
+    # if keyword == "Explorer":
+    #     generated_token = generate_token(32)
+    #     token: TokenRepository = TokenRepository(
+    #         user_id=int(userid), token=generated_token, is_expired=False
+    #     )
+    #     db.add(token)
+    #     db.commit()
+    #     return Response(status_code=status.HTTP_200_OK, content=generated_token)
+    return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED, content="Not implemented yet")
 
 
 @router.get("/v2/token-folders")
 async def get_folders_by_token(token: str, db: Session = Depends(get_db)):
-    token_record = (
-        db.query(TokenRepository)
-        .filter(TokenRepository.token == token, TokenRepository.is_expired != True)
-        .first()
-    )
-    if token_record:
-        userid = token_record.user_id
-        folders = db.query(Explorer).filter(Explorer.user_id == userid).all()
-        response = list()
-        for _idx in folders:
-            response.append(
-                {"folder_name": _idx.folder_name, "folder_path": _idx.relative_path}
-            )
-        return response
-    else:
-        return Response(status_code=status.HTTP_403_FORBIDDEN, content="Forbidden")
+    # TODO: restore when auth is implemented
+    # token_record = (
+    #     db.query(TokenRepository)
+    #     .filter(TokenRepository.token == token, TokenRepository.is_expired != True)
+    #     .first()
+    # )
+    # if token_record:
+    #     userid = token_record.user_id
+    #     folders = db.query(Explorer).filter(Explorer.user_id == userid).all()
+    #     response = list()
+    #     for _idx in folders:
+    #         response.append(
+    #             {"folder_name": _idx.folder_name, "folder_path": _idx.relative_path}
+    #         )
+    #     return response
+    # else:
+    #     return Response(status_code=status.HTTP_403_FORBIDDEN, content="Forbidden")
+    return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED, content="Not implemented yet")
 
 
 @router.post("/v2/upload")
@@ -659,30 +644,20 @@ async def upload_files_integration(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    token_record = (
-        db.query(TokenRepository)
-        .filter(TokenRepository.token == token, TokenRepository.is_expired != True)
-        .first()
-    )
-    if not token_record:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    userid = token_record.user_id
-    folder = (
-        db.query(Explorer)
-        .filter(Explorer.user_id == userid, Explorer.relative_path == folderpath)
-        .first()
-    )
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder path not found for this user")
-
-    _check_file_extension(file.filename, db)
-
-    try:
-        await put_objects(file=file, path=f"{folder.folder_path}/{year}/{month}")
-    except Exception:
-        return Response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content="Something went wrong",
-        )
-    return Response(status_code=status.HTTP_200_OK, content="Uploaded")
+    # TODO: restore when auth is implemented
+    # token_record = (
+    #     db.query(TokenRepository)
+    #     .filter(TokenRepository.token == token, TokenRepository.is_expired != True)
+    #     .first()
+    # )
+    # if not token_record:
+    #     raise HTTPException(status_code=401, detail="Invalid or expired token")
+    # userid = token_record.user_id
+    # folder = (
+    #     db.query(Explorer)
+    #     .filter(Explorer.user_id == userid, Explorer.relative_path == folderpath)
+    #     .first()
+    # )
+    # if not folder:
+    #     raise HTTPException(status_code=404, detail="Folder path not found for this user")
+    return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED, content="Not implemented yet")

@@ -26,7 +26,7 @@ from db.models import (
     AdminApprovalRequest,
     FolderGrant,
     GroupMembership,
-    Org,
+    Organization,
     UserGroup,
 )
 from models.email_templates.approval import approval_email_body
@@ -183,7 +183,7 @@ def create_and_send_group_delete_approval(
     db.flush()
 
     member_count = db.query(GroupMembership).filter(GroupMembership.group_id == group.id).count()
-    org = db.query(Org).filter(Org.id == group.org_id).first()
+    org = db.query(Organization).filter(Organization.id == group.org_id).first()
     org_name = org.org_name if org else "—"
     base = _approval_base_url(request_base_url)
     validity = _validity_label()
@@ -258,7 +258,7 @@ def _group_delete_summary(db: Session, group_id: int) -> dict:
     group = db.query(UserGroup).filter(UserGroup.id == group_id).first()
     if not group:
         return {}
-    org = db.query(Org).filter(Org.id == group.org_id).first()
+    org = db.query(Organization).filter(Organization.id == group.org_id).first()
     member_count = db.query(GroupMembership).filter(GroupMembership.group_id == group.id).count()
     grant_count = db.query(FolderGrant).filter(FolderGrant.group_id == group.id).count()
     prefixes = [

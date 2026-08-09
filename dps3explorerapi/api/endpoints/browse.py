@@ -21,7 +21,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.config import settings
 from core.permissions import check_prefix_access, filter_folders_by_grants, filter_files_by_grants
 from db.postgresdb import get_db
-from db.models import Org, FolderMetadata
+from db.models import Organization, FolderMetadata
 
 router = APIRouter()
 _bearer = HTTPBearer(auto_error=True)
@@ -133,12 +133,12 @@ class FolderDeleteRequest(BaseModel):
 
 # ----------------------------- Helpers ----------------------------------
 
-def _get_org_for_user(org_id: int, user: CurrentUser, db: Session) -> Org:
+def _get_org_for_user(org_id: int, user: CurrentUser, db: Session) -> Organization:
     """Fetch org and verify user has access to it.
     Global admins (master_admin, super_admin) can access any org.
-    Org admins (role 1) and users must belong to the same subscription.
+    Organization admins (role 1) and users must belong to the same subscription.
     """
-    org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 

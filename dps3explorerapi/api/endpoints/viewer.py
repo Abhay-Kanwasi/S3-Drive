@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from core.audit import audit_log, audit_actor_fields
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS
 from core.permissions import check_prefix_access
-from db.models import Org
+from db.models import Organization
 from db.postgresdb import get_db
 
 router = APIRouter()
@@ -137,7 +137,7 @@ def _resolve_bucket_for_preview(user: CurrentUser, base_path: str, db: Session) 
     if matches:
         return matches[0].bucket_name
     if base_path:
-        org = db.query(Org).filter(Org.bucket_name == base_path, Org.is_active == True).first()
+        org = db.query(Organization).filter(Organization.bucket_name == base_path, Organization.is_active == True).first()
         if org:
             return org.bucket_name
     raise HTTPException(status_code=404, detail="Bucket not found")
@@ -155,7 +155,7 @@ def _audit_file_viewed(
     """Log FILE_VIEWED once per open (first page only) to avoid pagination spam."""
     if page != 1:
         return
-    org = db.query(Org).filter(Org.bucket_name == bucket_name, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.bucket_name == bucket_name, Organization.is_active == True).first()
     audit_log(
         event_type="FILE_VIEWED",
         target_key=file_key,
@@ -193,8 +193,8 @@ async def preview_file(
 
     # Enforce grants for non-admin users
     if user.role_id not in ADMIN_ROLE_IDS:
-        org = db.query(Org).filter(
-            Org.bucket_name == bucket_name, Org.is_active == True
+        org = db.query(Organization).filter(
+            Organization.bucket_name == bucket_name, Organization.is_active == True
         ).first()
         if not org:
             raise HTTPException(status_code=403, detail="Organization not found")

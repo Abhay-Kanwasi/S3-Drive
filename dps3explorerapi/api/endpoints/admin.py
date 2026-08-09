@@ -22,7 +22,7 @@ from core.auth import (
     GLOBAL_ADMIN_ROLE_IDS
 )
 from db.postgresdb import get_db
-from db.models import Org, FolderMetadata
+from db.models import Organization, FolderMetadata
 
 router = APIRouter()
 
@@ -71,11 +71,11 @@ def _ensure_org_binding_available(
 ) -> None:
     """Reject if subscriber or bucket is already bound (active or legacy inactive row)."""
     rows = (
-        db.query(Org)
+        db.query(Organization)
         .filter(
             or_(
-                Org.subscription_id == subscription_id,
-                Org.bucket_name == bucket_name,
+                Organization.subscription_id == subscription_id,
+                Organization.bucket_name == bucket_name,
             )
         )
         .all()
@@ -120,9 +120,9 @@ async def admin_me(
         "org": None,
     }
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS and user.subscription_id:
-        org = db.query(Org).filter(
-            Org.subscription_id == user.subscription_id,
-            Org.is_active == True,
+        org = db.query(Organization).filter(
+            Organization.subscription_id == user.subscription_id,
+            Organization.is_active == True,
         ).first()
         if org:
             result["org"] = {
@@ -139,9 +139,9 @@ async def list_onboarded_orgs(
     db: Session = Depends(get_db),
 ):
     """Return onboarded organizations. Global admins see all; org admins see their own."""
-    q = db.query(Org).filter(Org.is_active == True)
+    q = db.query(Organization).filter(Organization.is_active == True)
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
-        q = q.filter(Org.subscription_id == user.subscription_id)
+        q = q.filter(Organization.subscription_id == user.subscription_id)
     orgs = q.all()
     result = []
     for org in orgs:
@@ -180,7 +180,7 @@ async def list_available_buckets(
 
     already_onboarded = {
         row.bucket_name
-        for row in db.query(Org.bucket_name).filter(Org.is_active == True).all()
+        for row in db.query(Organization.bucket_name).filter(Organization.is_active == True).all()
     }
 
     available = []
@@ -243,7 +243,7 @@ async def onboard_org(
     region = _get_bucket_region(s3, payload.bucket_name)
     org_name = subscriber.organization or subscriber.name or payload.subscription_id
 
-    new_org = Org(
+    new_org = Organization(
         subscription_id=payload.subscription_id,
         org_name=org_name,
         bucket_name=payload.bucket_name,
@@ -283,7 +283,7 @@ async def list_uam_subscribers(
     """
     already_onboarded = {
         row.subscription_id
-        for row in db.query(Org.subscription_id).filter(Org.is_active == True).all()
+        for row in db.query(Organization.subscription_id).filter(Organization.is_active == True).all()
     }
 
     subscribers = db.query(UAMSubscriber).filter(UAMSubscriber.active == True).all()
@@ -302,7 +302,7 @@ async def list_uam_subscribers(
 
 # ----------------------------- Helpers ----------------------------------
 
-def _backfill_folder_metadata(s3_client, org: Org, user: CurrentUser, db: Session):
+def _backfill_folder_metadata(s3_client, org: Organization, user: CurrentUser, db: Session):
     """Scan existing top-level folders in the bucket and create FolderMetadata
     rows so they appear with admin icons immediately after onboarding.
     Non-fatal — silently continues if anything fails."""

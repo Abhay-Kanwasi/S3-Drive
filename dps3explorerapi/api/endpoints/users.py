@@ -44,7 +44,7 @@ from core.user_access import (
     mark_s3_deactivated,
     s3_deactivated_user_ids,
 )
-from db.models import FolderGrant, GroupMembership, Org, S3UserDeactivation, UserGroup
+from db.models import FolderGrant, GroupMembership, Organization, S3UserDeactivation, UserGroup
 from db.postgresdb import get_db
 
 router = APIRouter()
@@ -58,14 +58,14 @@ def _scope_query(db: Session, user: CurrentUser, org_id: Optional[int]):
     """Return a base UAMUser query scoped by the caller's role.
 
     Raises HTTPException(400) when an invalid org_id is supplied by a
-    global admin. Org-admin callers always ignore org_id — scoped to
+    global admin. Organization-admin callers always ignore org_id — scoped to
     their own subscription unconditionally.
     """
     is_global = user.role_id in GLOBAL_ADMIN_ROLE_IDS
     q = db.query(UAMUser)
     if is_global:
         if org_id:
-            org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+            org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
             if not org:
                 raise HTTPException(
                     status_code=400,
@@ -131,8 +131,8 @@ def _resolve_org_for_subscription(db: Session, subscription_id: Optional[str]) -
     if not subscription_id:
         return None, None
     org = (
-        db.query(Org)
-        .filter(Org.subscription_id == subscription_id, Org.is_active == True)
+        db.query(Organization)
+        .filter(Organization.subscription_id == subscription_id, Organization.is_active == True)
         .first()
     )
     if org:
@@ -293,8 +293,8 @@ async def user_stats(
             .scalar() or 0
         )
     else:
-        org = db.query(Org).filter(
-            Org.subscription_id == user.subscription_id, Org.is_active == True
+        org = db.query(Organization).filter(
+            Organization.subscription_id == user.subscription_id, Organization.is_active == True
         ).first()
         groups_count = (
             db.query(func.count(UserGroup.id))
@@ -383,7 +383,7 @@ async def list_users(
     Paginated user list for admin panel.
 
     - Global admins see all users across all orgs. Optional org_id filter.
-    - Org admins are hard-scoped to their own subscription (org_id ignored).
+    - Organization admins are hard-scoped to their own subscription (org_id ignored).
     """
     base_q = _scope_query(db, user, org_id)
 

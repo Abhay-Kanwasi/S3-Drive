@@ -21,7 +21,7 @@ from core.otp import (
     verify_otp,
 )
 from core.smtp_email import smtp_configured
-from db.models import Org, UserGroup
+from db.models import Organization, UserGroup
 from db.postgresdb import get_db
 
 router = APIRouter()
@@ -130,7 +130,7 @@ async def send_otp(
         if not group:
             raise HTTPException(status_code=404, detail="Group not found.")
         if user.role_id == ROLE_ADMIN and user.subscription_id:
-            org_row = db.query(Org).filter(Org.id == group.org_id).first()
+            org_row = db.query(Organization).filter(Organization.id == group.org_id).first()
             if not org_row or org_row.subscription_id != user.subscription_id:
                 raise HTTPException(status_code=403, detail="Group is outside your organization.")
 

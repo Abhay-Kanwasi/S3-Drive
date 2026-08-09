@@ -31,7 +31,7 @@ from core.auth import (
     GLOBAL_ADMIN_ROLE_IDS, UAMUser,
 )
 from db.postgresdb import get_db, Session as DBSession
-from db.models import Org, UserGroup, GroupMembership, FolderGrant, UserNotification
+from db.models import Organization, UserGroup, GroupMembership, FolderGrant, UserNotification
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +43,9 @@ GROUP_ADMIN_ROLES = ["admin", "master_admin", "super_admin"]
 
 # ----------------------------- Helpers ------------------------------------
 
-def _get_org_for_admin(org_id: int, user: CurrentUser, db: Session) -> Org:
+def _get_org_for_admin(org_id: int, user: CurrentUser, db: Session) -> Organization:
     """Verify the org exists, is active, and the admin has access."""
-    org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
@@ -464,7 +464,7 @@ async def add_members(
     db: Session = Depends(get_db),
 ):
     group = _get_group(group_id, user, db)
-    org = db.query(Org).filter(Org.id == group.org_id).first()
+    org = db.query(Organization).filter(Organization.id == group.org_id).first()
 
     unique_ids = list(dict.fromkeys(payload.user_ids))
 
@@ -568,7 +568,7 @@ async def create_grant(
     db: Session = Depends(get_db),
 ):
     group = _get_group(group_id, user, db)
-    org = db.query(Org).filter(Org.id == group.org_id).first()
+    org = db.query(Organization).filter(Organization.id == group.org_id).first()
 
     s3 = boto3.client("s3")
     try:
@@ -657,7 +657,7 @@ async def remove_grant(
     return {"removed": grant_id}
 
 
-# ----------------------------- Org User Search ----------------------------
+# ----------------------------- Organization User Search ----------------------------
 
 @router.get("/orgs/{org_id}/users")
 async def search_org_users(
@@ -701,7 +701,7 @@ async def search_org_users(
     }
 
 
-# ----------------------------- Org Folder Tree ----------------------------
+# ----------------------------- Organization Folder Tree ----------------------------
 
 @router.get("/orgs/{org_id}/folder-tree")
 async def get_folder_tree(

@@ -15,7 +15,7 @@ from core.audit import audit_log, audit_actor_fields, file_transfer_details
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS, GLOBAL_ADMIN_ROLE_IDS
 from core.permissions import check_prefix_access, get_user_granted_prefixes
 from db.postgresdb import get_db
-from db.models import Org
+from db.models import Organization
 
 router = APIRouter()
 
@@ -45,7 +45,7 @@ class CopyMoveRequest(BaseModel):
 
 def _get_org_and_bucket(org_id: int, user: CurrentUser, db: Session) -> tuple:
     """Resolve org and verify user has access (same subscription guard as browse)."""
-    org = db.query(Org).filter(Org.id == org_id, Org.is_active == True).first()
+    org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
