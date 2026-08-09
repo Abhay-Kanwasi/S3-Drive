@@ -18,7 +18,6 @@ Group Management endpoints (Phase 3).
 
 from typing import List, Optional
 
-import boto3
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -30,6 +29,7 @@ from core.auth import (
     CurrentUser, get_current_user, require_role,
     GLOBAL_ADMIN_ROLE_IDS,
 )
+from core.s3 import get_s3_client
 from db.postgresdb import get_db, Session as DBSession
 from db.models import Organization, User, UserGroup, GroupMembership, FolderGrant, UserNotification
 
@@ -571,7 +571,7 @@ async def create_grant(
     group = _get_group(group_id, user, db)
     org = db.query(Organization).filter(Organization.id == group.org_id).first()
 
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
     try:
         resp = s3.list_objects_v2(
             Bucket=org.bucket_name, Prefix=payload.prefix, MaxKeys=1,
@@ -717,7 +717,7 @@ async def get_folder_tree(
     """
     org = _get_org_for_admin(org_id, user, db)
 
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
     folders = []
     continuation = None
 

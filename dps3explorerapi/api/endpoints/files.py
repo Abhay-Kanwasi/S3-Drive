@@ -6,7 +6,6 @@ File Operations endpoints (Phase 2.6).
 - POST /files/move    — move a file to a target folder (copy + delete source)
 """
 
-import boto3
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -14,12 +13,13 @@ from sqlalchemy.orm import Session
 from core.audit import audit_log, audit_actor_fields, file_transfer_details
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS, GLOBAL_ADMIN_ROLE_IDS
 from core.permissions import check_prefix_access, get_user_granted_prefixes
+from core.s3 import get_s3_client
 from db.postgresdb import get_db
 from db.models import Organization
 
 router = APIRouter()
 
-s3_client = boto3.client("s3")
+s3_client = get_s3_client()
 
 PART_SIZE = 100 * 1024 * 1024  # 100 MB
 SINGLE_COPY_LIMIT = 5 * 1024 * 1024 * 1024  # 5 GB

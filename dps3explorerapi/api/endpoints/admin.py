@@ -10,7 +10,6 @@ Admin endpoints for organization onboarding.
 import re
 from typing import List, Optional
 
-import boto3
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
@@ -21,6 +20,7 @@ from core.auth import (
     CurrentUser, require_role,
     GLOBAL_ADMIN_ROLE_IDS
 )
+from core.s3 import get_s3_client
 from db.postgresdb import get_db
 from db.models import Organization, FolderMetadata
 
@@ -195,7 +195,7 @@ async def list_available_buckets(
     List S3 buckets from the AWS account that are NOT yet onboarded.
     Region is resolved from AWS, not client-supplied.
     """
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
     try:
         response = s3.list_buckets()
     except Exception as e:
@@ -250,7 +250,7 @@ async def _create_onboard_org(
         bucket_name=bucket_name,
     )
 
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
     try:
         s3.head_bucket(Bucket=bucket_name)
     except Exception:

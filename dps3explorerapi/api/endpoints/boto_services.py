@@ -19,10 +19,10 @@ from db.models import Organization, FolderMetadata, PlatformSettings
 # from db.models import Explorer, TokenRepository
 from core.audit import audit_log, audit_actor_fields
 from datetime import datetime
-import boto3
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS
 from core.config import settings
 from core.permissions import check_prefix_access
+from core.s3 import get_s3_client
 
 
 router = APIRouter()
@@ -421,7 +421,7 @@ def delete_by_filename(deleteReq: DeleteReq, request: Request, user: CurrentUser
         del_prefix = "/".join(file_parts[:-1]) + "/" if len(file_parts) > 1 else ""
         check_prefix_access(user, org.id, del_prefix, db, require_write=True)
 
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
 
     # Verify the file actually exists before attempting copy
     try:

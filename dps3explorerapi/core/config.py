@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     AUDIT_HOT_DAYS: int = 30
     AUDIT_TOTAL_DAYS: int = 365
 
+    # Primary S3 switch (same boto3 API):
+    #   empty → real AWS | set → MinIO/LocalStack (host: localhost:9000, compose: minio:9000)
+    S3_ENDPOINT_URL: str = ""
+    AWS_DEFAULT_REGION: str = "us-east-1"
+    # Optional. AWS mode: set keys or omit for IAM.
+    # Local MinIO: leave empty → get_s3_client uses minioadmin defaults.
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+
     DB_SCHEMA: str = "explorer"
     ENV: str = Field(default="dev", validation_alias=AliasChoices("ENV", "env"))
 

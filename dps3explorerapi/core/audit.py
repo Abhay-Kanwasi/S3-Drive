@@ -20,14 +20,14 @@ from datetime import datetime, timezone
 from threading import Lock
 from typing import Optional
 
-import boto3
 from fastapi import Request
 
 from core.config import settings
+from core.s3 import get_s3_client
 
 logger = logging.getLogger(__name__)
 
-_s3 = boto3.client("s3")
+_s3 = get_s3_client()
 _executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="audit")
 _write_lock = Lock()
 

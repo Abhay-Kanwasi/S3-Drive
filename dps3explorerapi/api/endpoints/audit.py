@@ -17,7 +17,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from typing import Optional
 
-import boto3
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -28,6 +27,7 @@ from core.auth import (
     require_role,
 )
 from core.config import settings
+from core.s3 import get_s3_client
 from db.postgresdb import get_db
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ AUDIT_PREFIX = "audit/"
 HOT_DAYS = settings.AUDIT_HOT_DAYS
 TOTAL_RETENTION_DAYS = settings.AUDIT_TOTAL_DAYS
 
-_s3 = boto3.client("s3")
+_s3 = get_s3_client()
 _read_pool = ThreadPoolExecutor(max_workers=20, thread_name_prefix="audit-read")
 
 EVENT_TYPE_LABELS = {

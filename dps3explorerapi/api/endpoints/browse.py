@@ -9,7 +9,6 @@ Browse & Folder Management endpoints (Phase 2).
 
 from typing import List, Optional
 
-import boto3
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
@@ -21,6 +20,7 @@ from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS, GLOBAL_ADMI
 from core.user_access import effective_s3_access, is_s3_deactivated
 from core.config import settings
 from core.permissions import check_prefix_access, filter_folders_by_grants, filter_files_by_grants
+from core.s3 import get_s3_client
 from db.postgresdb import get_db
 from db.models import Organization, FolderMetadata, User, GroupMembership, UserGroup
 
@@ -269,7 +269,7 @@ async def browse_folder(
     """
     org = _get_org_for_user(payload.org_id, user, db)
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
     prefix = payload.prefix
 
     if prefix and not prefix.endswith("/"):
@@ -430,7 +430,7 @@ async def create_folder(
     # Enforce write grant for non-admin users (replaces legacy admin-folder check)
     check_prefix_access(user, org.id, parent or new_key, db, require_write=True)
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
 
     existing = s3.list_objects_v2(
         Bucket=org.bucket_name, Prefix=new_key, MaxKeys=1
@@ -511,7 +511,7 @@ async def rename_folder(
         parent_prefix += "/"
     new_key = f"{parent_prefix}{payload.new_name}/"
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
 
     existing = s3.list_objects_v2(
         Bucket=org.bucket_name, Prefix=new_key, MaxKeys=1
@@ -633,7 +633,7 @@ async def delete_folder(
                 detail="Only admins can delete admin-created folders",
             )
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
 
     objects_to_move = []
     paginator = s3.get_paginator("list_objects_v2")
@@ -749,7 +749,7 @@ async def list_trash(
     org = _get_org_for_user(payload.org_id, user, db)
     is_admin = _is_admin_user(user)
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
 
     if is_admin:
         trash_prefix = f"trash/{org.id}/"
@@ -804,7 +804,7 @@ async def restore_from_trash(
         if not payload.trash_key.startswith(expected_prefix):
             raise HTTPException(status_code=403, detail="Can only restore your own trashed items")
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
 
     is_folder = payload.trash_key.endswith("/")
 
@@ -945,7 +945,7 @@ async def purge_from_trash(
         if not payload.trash_key.startswith(expected_prefix):
             raise HTTPException(status_code=403, detail="Can only purge your own trashed items")
 
-    s3 = boto3.client("s3", region_name=org.region)
+    s3 = get_s3_client(region_name=org.region)
 
     is_folder = payload.trash_key.endswith("/")
 

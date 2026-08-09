@@ -13,7 +13,6 @@ import time
 import threading
 from typing import Any
 
-import boto3
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -22,6 +21,7 @@ from sqlalchemy.orm import Session
 from core.audit import audit_log, audit_actor_fields
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS
 from core.permissions import check_prefix_access
+from core.s3 import get_s3_client
 from db.models import Organization
 from db.postgresdb import get_db
 
@@ -29,7 +29,7 @@ router = APIRouter()
 
 VIEWABLE_EXTENSIONS = {".csv", ".xlsx", ".parquet", ".json"}
 
-s3_client = boto3.client("s3")
+s3_client = get_s3_client()
 
 # Simple in-memory cache: avoids re-downloading + re-parsing on every page request.
 # Key: (bucket, file_key) → { "df": DataFrame, "ts": timestamp }

@@ -1,10 +1,10 @@
-import boto3
 from boto3.s3.transfer import TransferConfig
 import json
 import secrets
 from core.config import settings
+from core.s3 import get_s3_client
 
-client = boto3.client("s3")
+client = get_s3_client()
 BUCKET_NAME = settings.BUCKET
 
 
@@ -34,10 +34,10 @@ class BOTO:
     client = None
 
     def __init__(self) -> None:
-        self.s3 = boto3.client("s3")
+        self.s3 = get_s3_client()
 
     def get_resource(self):
-        self.s3 = self.session.client("s3")
+        self.s3 = get_s3_client()
 
     def get_all_folders_from_permitted_root(self, key) -> list:
         if self.s3 is None:
@@ -161,10 +161,10 @@ class TrashBOTO:
     TRASH_BUCKET = "explorer-trash"
 
     def __init__(self) -> None:
-        self.trash_s3 = boto3.client("s3")
+        self.trash_s3 = get_s3_client()
 
     def get_resource(self):
-        self.trash_s3 = self.trash_session.client("s3")
+        self.trash_s3 = get_s3_client()
 
     def restore_item(self, key):
         _metadata_object = self.trash_s3.get_object(Bucket=self.TRASH_BUCKET, Key=key)
