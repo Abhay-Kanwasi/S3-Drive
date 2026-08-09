@@ -234,4 +234,10 @@ INSERT INTO explorer.s3_platform_settings (id)
 VALUES (1)
 ON CONFLICT (id) DO NOTHING;
 
+-- seed bootstrap super_admin (id=1); sequence advanced so API inserts start at 2
+INSERT INTO explorer.users (id, username, email, role, active)
+VALUES (1, 'admin', 'admin@example.com', 4, true)
+ON CONFLICT (id) DO NOTHING;
+SELECT setval(pg_get_serial_sequence('explorer.users', 'id'), 1);
+
 COMMIT;

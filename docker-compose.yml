@@ -1,6 +1,6 @@
-# Base stack (API + UI). Primary switch in dps3explorerapi/.env:
+# Base stack (API + UI + DB). Primary switch in dps3explorerapi/.env:
 #   S3_ENDPOINT_URL empty → real AWS (same boto3 code; keys optional / IAM OK)
-#   S3_ENDPOINT_URL set   → MinIO / LocalStack (MinIO keys default if unset)
+#   S3_ENDPOINT_URL set   → MinIO / LocalStack
 #
 # Local MinIO:
 #   docker compose -f docker-compose.yml -f docker-compose.minio.yml up -d --build
@@ -8,24 +8,69 @@
 # Real AWS:
 #   clear S3_ENDPOINT_URL in dps3explorerapi/.env, then:
 #   docker compose up -d --build
-#
-# API on host + MinIO in Docker:
-#   docker compose -f docker-compose.yml -f docker-compose.minio.yml up -d minio minio-init
-#   S3_ENDPOINT_URL=http://localhost:9000 (keys optional)
 
 services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: s3explorer
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin;
+        mc mb --ignore-existing local/testing-bucket;
+        mc mb --ignore-existing local/explorer-trash;
+      "
+
   api:
     container_name: dps3explorer-api
     build:
       context: ./dps3explorerapi
     ports:
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     env_file:
       - path: ./dps3explorerapi/.env
         required: false
-    environment:
-      APPROVAL_FRONTEND_URL: ${APPROVAL_FRONTEND_URL:-http://localhost:3000/explorer}
-      APPROVAL_BASE_URL: ${APPROVAL_BASE_URL:-http://localhost:8000/api/v2/explorer}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v2/explorer/health"]
       interval: 30s
@@ -46,3 +91,7 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  db_data: {}
+  minio_data: {}
