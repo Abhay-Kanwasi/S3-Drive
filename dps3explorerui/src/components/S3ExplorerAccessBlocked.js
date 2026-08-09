@@ -2,11 +2,16 @@
 import { ShieldX } from "lucide-react";
 
 /**
- * Full-screen message when the user cannot use S3 Explorer (deactivated or UAM inactive).
+ * Full-screen message when the user cannot use S3 Explorer
+ * (S3 deactivated or account inactive).
  */
 export default function S3ExplorerAccessBlocked({ access }) {
   const s3Only = access?.block_reason === "s3_explorer";
-  const uamOnly = access?.block_reason === "uam";
+  const accountInactive =
+    access?.block_reason === "account" ||
+    access?.block_reason === "uam" ||
+    access?.account_active === false ||
+    access?.uam_active === false;
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full gap-4 px-6 text-center bg-background">
@@ -15,7 +20,7 @@ export default function S3ExplorerAccessBlocked({ access }) {
         <h1 className="text-lg font-semibold text-foreground">
           {s3Only
             ? "S3 Explorer access deactivated"
-            : uamOnly
+            : accountInactive
               ? "Account deactivated"
               : "Access unavailable"}
         </h1>

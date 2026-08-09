@@ -2,8 +2,8 @@
 Grant-based folder access control.
 
 Checks whether a user's group memberships grant them access to a given
-S3 prefix.  Admins bypass all checks.  Users with no group memberships
-fall back to legacy s3_explorer rows (prevents lockout during migration).
+S3 prefix. Admins bypass all checks. Legacy s3_explorer fallback removed
+(intentional for independent greenfield).
 """
 
 from typing import List, Optional, Tuple
@@ -50,12 +50,6 @@ def _user_has_any_memberships(user_id: int, org_id: int, db: Session) -> bool:
     ) is not None
 
 
-def _user_has_legacy_access(user_id: int, db: Session) -> bool:
-    # TODO: restore when auth is implemented
-    # return db.query(Explorer.id).filter(Explorer.user_id == user_id).first() is not None
-    return False
-
-
 def check_prefix_access(
     user: CurrentUser,
     org_id: int,
@@ -67,7 +61,6 @@ def check_prefix_access(
     Verify that the user can access the given prefix.
 
     - Admins (role 1, 3, 4): always allowed, no check.
-    - Users with no group memberships: fall back to legacy access (allowed).
     - Users with memberships: must have a FolderGrant whose prefix covers
       the requested path.  Write operations require access_level='read_write'.
 
@@ -77,8 +70,6 @@ def check_prefix_access(
         return
 
     if not _user_has_any_memberships(user.id, org_id, db):
-        if _user_has_legacy_access(user.id, db):
-            return
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No folder access granted for this organization",
@@ -125,7 +116,7 @@ def filter_folders_by_grants(
 ) -> list:
     """
     Filter a list of folder items to only those the user has grants for.
-    Admins see everything.  Ungrouped users see everything (legacy fallback).
+    Admins see everything. Ungrouped users see nothing.
 
     A folder is visible if:
     - A grant covers the current_prefix (user has access to this directory) — show
@@ -137,8 +128,6 @@ def filter_folders_by_grants(
         return folders
 
     if not _user_has_any_memberships(user.id, org_id, db):
-        if _user_has_legacy_access(user.id, db):
-            return folders
         return []
 
     grants = get_user_granted_prefixes(user.id, org_id, db)
@@ -192,8 +181,6 @@ def filter_files_by_grants(
         return files
 
     if not _user_has_any_memberships(user.id, org_id, db):
-        if _user_has_legacy_access(user.id, db):
-            return files
         return []
 
     grants = get_user_granted_prefixes(user.id, org_id, db)

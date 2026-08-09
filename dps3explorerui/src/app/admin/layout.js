@@ -5,6 +5,7 @@ import { useQuery } from "react-query";
 import { Database, Users, UserCircle, FileText, Loader2, ShieldX, Settings } from "lucide-react";
 import { ApplicationContext } from "@/services/ContextProvider";
 import { getExplorerAccess, isS3ExplorerDeactivated } from "@/services/access";
+import { getSelectedUserId, setSelectedUserId } from "@/services/auth";
 import S3ExplorerAccessBlocked from "@/components/S3ExplorerAccessBlocked";
 import { AdminProvider, useAdminMe } from "./AdminContext";
 
@@ -44,18 +45,24 @@ export default function AdminLayout({ children }) {
 function AdminLayoutInner({ children, skipAccessCheck = false }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { username, isAdmin, authToken } = useContext(ApplicationContext);
+  const { username, isAdmin, setCurrentUserId } = useContext(ApplicationContext);
   const { me, isLoading, isError, error } = useAdminMe();
   const [mounted, setMounted] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [devDraft, setDevDraft] = useState("");
 
   const { data: access, isLoading: accessLoading } = useQuery(
-    "explorer-access",
+    ["explorer-access", selectedId],
     getExplorerAccess,
-    { enabled: mounted, retry: false, staleTime: 60 * 1000 },
+    { enabled: mounted && Boolean(selectedId), retry: false, staleTime: 60 * 1000 },
   );
 
   useEffect(() => {
     setMounted(true);
+    const id = getSelectedUserId();
+    setSelectedId(id);
+    setDevDraft(id || "");
+    if (id) setCurrentUserId?.(id);
   }, []);
 
   const errMsg = (error?.message || "").toLowerCase();
@@ -66,6 +73,44 @@ function AdminLayoutInner({ children, skipAccessCheck = false }) {
 
   if (!mounted) {
     return <div className="h-full w-full bg-background" aria-hidden="true" />;
+  }
+
+  if (!selectedId && !skipAccessCheck) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full w-full gap-3 px-6">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+          Temporary · Dev only
+        </p>
+        <h2 className="text-lg font-semibold text-foreground">Dev user selector</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          Select a user id to call admin APIs with{" "}
+          <code className="text-xs bg-muted px-1 rounded">X-User-Id</code>.
+        </p>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={devDraft}
+          onChange={(e) => setDevDraft(e.target.value)}
+          placeholder="e.g. 1"
+          className="w-full max-w-xs px-3 py-2 border border-border rounded-lg text-sm"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const id = String(devDraft || "").trim();
+            if (!id || !/^\d+$/.test(id)) {
+              alert("Enter a numeric user id");
+              return;
+            }
+            setSelectedUserId(id);
+            window.location.reload();
+          }}
+          className="px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold"
+        >
+          Save &amp; reload
+        </button>
+      </div>
+    );
   }
 
   if (!skipAccessCheck) {

@@ -33,15 +33,14 @@ class Settings(BaseSettings):
     TENANTID: str     = Field(default="", validation_alias=AliasChoices("TENANTID",     "tenantId"))
     USERID: str       = Field(default="", validation_alias=AliasChoices("USERID",       "userId"))
 
+    # TEMPORARY header auth stand-in (X-User-Id). Replace before public deploy.
     DEV_AUTH_MODE: bool = True
     BOOTSTRAP_ADMIN_EMAIL: str = ""
     BOOTSTRAP_ADMIN_USERNAME: str = "admin"
 
-    JWT_SECRET_KEY: str = "change-me-in-production"
-    JWT_ALGORITHM: str = "HS256"
-
     SMTP_HOST: str = ""
-    SMTP_PORT: int = 587
+    # Accept SMTP_PORT or legacy PORT (some .env files still use PORT=587).
+    SMTP_PORT: int = Field(default=587, validation_alias=AliasChoices("SMTP_PORT", "PORT"))
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""

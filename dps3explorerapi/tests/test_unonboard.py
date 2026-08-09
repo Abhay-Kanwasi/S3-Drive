@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from tests.conftest import SUPER_ADMIN, ORG_ADMIN
 from tests.test_approval import _parse_action_link
-from db.models import Org, FolderGrant, UserGroup, UnonboardRequest
-from core.auth import ROLE_SUPER_ADMIN, ROLE_MASTER_ADMIN, UAMUser
+from db.models import Organization, User, FolderGrant, UserGroup, UnonboardRequest
+from core.auth import ROLE_SUPER_ADMIN, ROLE_MASTER_ADMIN
 from core.otp import create_and_send_otp
 from core.unonboard import unonboard_submit_purpose
 
@@ -21,38 +21,42 @@ ADMIN = "/api/v2/explorer/admin"
 
 @pytest.fixture
 def seed_org(db):
-    org = Org(
-        subscription_id="sub-unonboard",
+    org = Organization(
+        id=1,
+        org_key="org-unonboard",
         org_name="UnonboardCo",
         bucket_name="unonboard-bucket",
         region="us-east-1",
-        onboarded_by=SUPER_ADMIN.id,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    db.merge(
+        User(
+            id=SUPER_ADMIN.id,
+            username=SUPER_ADMIN.user_name,
+            email=SUPER_ADMIN.email,
+            role=ROLE_SUPER_ADMIN,
+            organization_id=1,
+            active=True,
+        )
+    )
+    db.flush()
+    org.onboarded_by = SUPER_ADMIN.id
     db.commit()
     db.refresh(org)
     return org
 
 
 @pytest.fixture
-def seed_master_admins(db):
+def seed_master_admins(db, seed_org):
     db.merge(
-        UAMUser(
-            id=SUPER_ADMIN.id,
-            user_name=SUPER_ADMIN.user_name,
-            email=SUPER_ADMIN.email,
-            role=ROLE_SUPER_ADMIN,
-            subscription_id="sub-unonboard",
-            active=True,
-        )
-    )
-    db.merge(
-        UAMUser(
+        User(
             id=ORG_ADMIN.id,
-            user_name=ORG_ADMIN.user_name,
+            username=ORG_ADMIN.user_name,
             email=ORG_ADMIN.email,
             role=ROLE_MASTER_ADMIN,
-            subscription_id="sub-other",
+            organization_id=None,
             active=True,
         )
     )
@@ -61,7 +65,7 @@ def seed_master_admins(db):
 
 @pytest.fixture
 def seed_org_with_grant(db, seed_org):
-    g = UserGroup(org_id=seed_org.id, name="dp-Keep", created_by=SUPER_ADMIN.id)
+    g = UserGroup(org_id=seed_org.id, name="Keep", created_by=SUPER_ADMIN.id)
     db.add(g)
     db.flush()
     db.add(
@@ -140,7 +144,7 @@ async def test_unonboard_request_and_email_approve(
     assert "un-onboarded" in confirm.text.lower()
 
     db.expire_all()
-    assert db.query(Org).filter(Org.id == org_id).first() is None
+    assert db.query(Organization).filter(Organization.id == org_id).first() is None
     assert db.query(FolderGrant).filter(FolderGrant.org_id == org_id).count() == 0
     assert db.query(UserGroup).filter(UserGroup.org_id == org_id).count() == 0
     req_row = (
@@ -192,7 +196,7 @@ async def test_unonboard_email_reject_keeps_org_active(
     assert resp.status_code == 200
 
     db.expire_all()
-    org_row = db.query(Org).filter(Org.id == org.id).first()
+    org_row = db.query(Organization).filter(Organization.id == org.id).first()
     assert org_row is not None
     assert org_row.is_active is True
     assert db.query(FolderGrant).filter(FolderGrant.org_id == org.id).count() == 1
@@ -237,7 +241,7 @@ async def test_unonboard_wrong_approver_blocked(
     assert "approver" in resp.text.lower()
 
     db.expire_all()
-    assert db.query(Org).filter(Org.id == org.id).first() is not None
+    assert db.query(Organization).filter(Organization.id == org.id).first() is not None
 
 
 @pytest.mark.asyncio

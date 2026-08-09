@@ -129,9 +129,12 @@ async def send_otp(
         group = db.query(UserGroup).filter(UserGroup.id == group_id).first()
         if not group:
             raise HTTPException(status_code=404, detail="Group not found.")
-        if user.role_id == ROLE_ADMIN and user.subscription_id:
+        if user.role_id == ROLE_ADMIN and (user.organization_id or user.subscription_id):
             org_row = db.query(Organization).filter(Organization.id == group.org_id).first()
-            if not org_row or org_row.subscription_id != user.subscription_id:
+            if not org_row or (
+                user.organization_id != org_row.id
+                and user.subscription_id != org_row.org_key
+            ):
                 raise HTTPException(status_code=403, detail="Group is outside your organization.")
 
         try:

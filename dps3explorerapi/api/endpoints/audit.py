@@ -20,6 +20,7 @@ from typing import Optional
 import boto3
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 
 from core.auth import (
     CurrentUser,
@@ -27,6 +28,7 @@ from core.auth import (
     require_role,
 )
 from core.config import settings
+from db.postgresdb import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +233,7 @@ def _clamp_dates(date_from: Optional[str], date_to: Optional[str]):
     return start, end, warning
 
 
-def _resolve_names(events: list[dict]) -> list[dict]:
+def _resolve_names(events: list[dict], db) -> list[dict]:
     """Enrich events with user_name and org_name from DB."""
     user_ids = list({e.get("user_id") for e in events if e.get("user_id")})
     org_ids = list({e.get("org_id") for e in events if e.get("org_id")})
@@ -240,21 +242,16 @@ def _resolve_names(events: list[dict]) -> list[dict]:
     org_map = {}
 
     if user_ids or org_ids:
-        from db.postgresdb import get_db as _get_db_gen
         from db.models import Organization
-        from core.auth import UAMUser
-        db = next(_get_db_gen())
-        try:
-            if user_ids:
-                rows = db.query(UAMUser.id, UAMUser.user_name, UAMUser.email).filter(
-                    UAMUser.id.in_(user_ids)
-                ).all()
-                user_map = {r.id: r.user_name or r.email or str(r.id) for r in rows}
-            if org_ids:
-                rows = db.query(Organization.id, Organization.org_name).filter(Organization.id.in_(org_ids)).all()
-                org_map = {r.id: r.org_name for r in rows}
-        finally:
-            db.close()
+        from db.models import User
+        if user_ids:
+            rows = db.query(User.id, User.username, User.email).filter(
+                User.id.in_(user_ids)
+            ).all()
+            user_map = {r.id: r.username or r.email or str(r.id) for r in rows}
+        if org_ids:
+            rows = db.query(Organization.id, Organization.org_name).filter(Organization.id.in_(org_ids)).all()
+            org_map = {r.id: r.org_name for r in rows}
 
     for ev in events:
         if not ev.get("user_name"):
@@ -266,38 +263,40 @@ def _resolve_names(events: list[dict]) -> list[dict]:
     return events
 
 
-def _resolve_org_scope(user: CurrentUser, requested_org_id: Optional[int]):
+def _resolve_org_scope(user: CurrentUser, requested_org_id: Optional[int], db):
     """Return (is_global_admin, scoped_org_id, scoped_org_folder_name)."""
-    from db.postgresdb import get_db as _get_db_gen
     from db.models import Organization
 
     is_global = user.role_id in GLOBAL_ADMIN_ROLE_IDS
     scoped_org_id = requested_org_id
     scoped_org_folder = None
 
-    db = next(_get_db_gen())
-    try:
-        if not is_global:
+    if not is_global:
+        own_org = None
+        if user.organization_id:
             own_org = db.query(Organization).filter(
-                Organization.subscription_id == user.subscription_id,
+                Organization.id == user.organization_id,
                 Organization.is_active == True,
             ).first()
-            if not own_org:
-                return is_global, -1, "__missing_org__"
-            return is_global, own_org.id, _normalize_org_folder(own_org.org_name, own_org.id)
-
-        if requested_org_id:
-            target_org = db.query(Organization).filter(
-                Organization.id == requested_org_id,
+        elif user.org_key:
+            own_org = db.query(Organization).filter(
+                Organization.org_key == user.org_key,
                 Organization.is_active == True,
             ).first()
-            if not target_org:
-                return is_global, requested_org_id, "__missing_org__"
-            scoped_org_folder = _normalize_org_folder(target_org.org_name, target_org.id)
+        if not own_org:
+            return is_global, -1, "__missing_org__"
+        return is_global, own_org.id, _normalize_org_folder(own_org.org_name, own_org.id)
 
-        return is_global, scoped_org_id, scoped_org_folder
-    finally:
-        db.close()
+    if requested_org_id:
+        target_org = db.query(Organization).filter(
+            Organization.id == requested_org_id,
+            Organization.is_active == True,
+        ).first()
+        if not target_org:
+            return is_global, requested_org_id, "__missing_org__"
+        scoped_org_folder = _normalize_org_folder(target_org.org_name, target_org.id)
+
+    return is_global, scoped_org_id, scoped_org_folder
 
 
 @router.get("/audit")
@@ -310,6 +309,7 @@ async def list_audit_events(
     page_size: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     user: CurrentUser = Depends(require_role(AUDIT_ROLES)),
+    db: Session = Depends(get_db),
 ):
     """Paginated audit event listing. Reads from S3 hot tier (last 30 days)."""
 
@@ -319,7 +319,7 @@ async def list_audit_events(
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    is_global, scoped_org_id, scoped_org_folder = _resolve_org_scope(user, org_id)
+    is_global, scoped_org_id, scoped_org_folder = _resolve_org_scope(user, org_id, db)
 
     # Collect daily audit files (audit.log and rotated files) newest-day-first.
     # Cap at 5000 files to prevent memory spikes.
@@ -351,7 +351,7 @@ async def list_audit_events(
     page_events = events[offset:offset + page_size]
 
     # Enrich with user/org names
-    page_events = _resolve_names(page_events)
+    page_events = _resolve_names(page_events, db)
 
     if truncated and not warning:
         warning = {
@@ -391,6 +391,7 @@ async def export_audit_csv(
     event_type: Optional[str] = Query(None),
     user_id: Optional[int] = Query(None),
     user: CurrentUser = Depends(require_role(AUDIT_ROLES)),
+    db: Session = Depends(get_db),
 ):
     """Export filtered audit events as CSV."""
 
@@ -400,7 +401,7 @@ async def export_audit_csv(
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    is_global, scoped_org_id, scoped_org_folder = _resolve_org_scope(user, org_id)
+    is_global, scoped_org_id, scoped_org_folder = _resolve_org_scope(user, org_id, db)
 
     MAX_EXPORT_KEYS = 10000
     all_keys = []
@@ -420,7 +421,7 @@ async def export_audit_csv(
         events = [e for e in events if e.get("user_id") == user_id]
 
     events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
-    events = _resolve_names(events)
+    events = _resolve_names(events, db)
 
     output = io.StringIO()
     writer = csv.writer(output)

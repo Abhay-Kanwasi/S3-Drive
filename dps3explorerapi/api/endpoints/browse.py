@@ -14,48 +14,135 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
+from fastapi import Header
+
 from core.audit import audit_log
-from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS, GLOBAL_ADMIN_ROLE_IDS, _load_uam_user_from_token
+from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS, GLOBAL_ADMIN_ROLE_IDS
 from core.user_access import effective_s3_access, is_s3_deactivated
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.config import settings
 from core.permissions import check_prefix_access, filter_folders_by_grants, filter_files_by_grants
 from db.postgresdb import get_db
-from db.models import Organization, FolderMetadata
+from db.models import Organization, FolderMetadata, User, GroupMembership, UserGroup
 
 router = APIRouter()
-_bearer = HTTPBearer(auto_error=True)
+
+
+def _accessible_orgs_for_user(user: CurrentUser, db: Session) -> list:
+    """Orgs visible in the explorer sidebar (grants + admin scope)."""
+    response = []
+    grant_org_ids = [
+        row[0]
+        for row in (
+            db.query(UserGroup.org_id)
+            .join(GroupMembership, GroupMembership.group_id == UserGroup.id)
+            .filter(GroupMembership.user_id == user.id)
+            .distinct()
+            .all()
+        )
+    ]
+    seen_org_ids = set()
+
+    if grant_org_ids:
+        grant_orgs = db.query(Organization).filter(
+            Organization.id.in_(grant_org_ids), Organization.is_active == True
+        ).all()
+        for org in grant_orgs:
+            seen_org_ids.add(org.id)
+            response.append({
+                "folder_name": org.org_name,
+                "folder_path": "",
+                "bucket_name": org.bucket_name,
+                "org_id": org.id,
+                "org_name": org.org_name,
+                "org_key": org.org_key,
+            })
+
+    if user.role_id in ADMIN_ROLE_IDS:
+        if user.role_id in GLOBAL_ADMIN_ROLE_IDS:
+            admin_orgs = db.query(Organization).filter(Organization.is_active == True).all()
+            for org in admin_orgs:
+                if org.id in seen_org_ids:
+                    continue
+                seen_org_ids.add(org.id)
+                response.append({
+                    "folder_name": org.org_name,
+                    "folder_path": "",
+                    "bucket_name": org.bucket_name,
+                    "org_id": org.id,
+                    "org_name": org.org_name,
+                    "org_key": org.org_key,
+                })
+        else:
+            q = db.query(Organization).filter(Organization.is_active == True)
+            if user.organization_id:
+                q = q.filter(Organization.id == user.organization_id)
+            elif user.org_key:
+                q = q.filter(Organization.org_key == user.org_key)
+            else:
+                q = q.filter(False)
+            for org in q.all():
+                if org.id in seen_org_ids:
+                    continue
+                seen_org_ids.add(org.id)
+                response.append({
+                    "folder_name": org.org_name,
+                    "folder_path": "",
+                    "bucket_name": org.bucket_name,
+                    "org_id": org.id,
+                    "org_name": org.org_name,
+                    "org_key": org.org_key,
+                })
+
+    return response
 
 
 @router.get("/me")
 async def explorer_access_status(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
     db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 ):
     """
     Return S3 Explorer access status without blocking deactivated users.
     Used by the UI to show a clear message before other API calls fail with 403.
+    Does not use get_current_user so deactivated accounts can still see why.
     """
-    user = _load_uam_user_from_token(credentials.credentials, db)
-    uam_active = bool(user.active)
+    if not settings.DEV_AUTH_MODE:
+        raise HTTPException(status_code=501, detail="DEV_AUTH_MODE is disabled; real auth is not configured yet")
+    if not x_user_id or not str(x_user_id).strip().isdigit():
+        raise HTTPException(status_code=401, detail="Missing or invalid X-User-Id header")
+
+    user = db.query(User).filter(User.id == int(str(x_user_id).strip())).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    account_active = bool(user.active)
     s3_deactivated = is_s3_deactivated(db, user.id)
-    can_access = effective_s3_access(uam_active, s3_deactivated)
+    can_access = effective_s3_access(account_active, s3_deactivated)
 
     block_reason = None
-    if not uam_active:
-        block_reason = "uam"
+    if not account_active:
+        block_reason = "account"
     elif s3_deactivated:
         block_reason = "s3_explorer"
 
     return {
         "id": user.id,
-        "user_name": user.user_name or "",
+        "user_name": user.username or "",
         "email": user.email or "",
         "can_access": can_access,
-        "uam_active": uam_active,
+        "account_active": account_active,
         "s3_deactivated": s3_deactivated,
         "block_reason": block_reason,
     }
+
+
+@router.get("/orgs")
+async def list_accessible_orgs(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List organizations the current user can open in the explorer sidebar."""
+    return _accessible_orgs_for_user(user, db)
 
 
 # ----------------------------- Schemas ----------------------------------
@@ -136,14 +223,14 @@ class FolderDeleteRequest(BaseModel):
 def _get_org_for_user(org_id: int, user: CurrentUser, db: Session) -> Organization:
     """Fetch org and verify user has access to it.
     Global admins (master_admin, super_admin) can access any org.
-    Organization admins (role 1) and users must belong to the same subscription.
+    Organization admins (role 1) and users must belong to the same org.
     """
     org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
-        if user.subscription_id != org.subscription_id:
+        if user.organization_id != org.id and user.subscription_id != org.org_key:
             raise HTTPException(status_code=403, detail="No access to this organization")
 
     return org

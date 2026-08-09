@@ -174,11 +174,11 @@ export default function GroupsPage() {
  * Wizard flow depends on role:
  *   MASTER_ADMIN / SUPER_ADMIN (isGlobalAdmin=true):
  *     Step 1 — Select Organization
- *     Step 2 — Group Name (dp- prefix)
+ *     Step 2 — Group Name (free-text)
  *     Step 3 — Pick Members from selected org
  *
  *   ORG_ADMIN (isGlobalAdmin=false, fixedOrgId set):
- *     Step 1 — Group Name (dp- prefix)
+ *     Step 1 — Group Name (free-text)
  *     Step 2 — Pick Members from their org
  */
 function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated }) {
@@ -344,21 +344,16 @@ function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated
               <label className="block text-sm font-medium text-foreground mb-2">
                 Group name
               </label>
-              <div className="flex items-center border border-border rounded-lg overflow-hidden">
-                <span className="px-3 py-2.5 bg-new-bg text-muted-foreground text-sm font-mono select-none">
-                  dp-
-                </span>
-                <input
-                  type="text"
-                  value={groupName}
-                  onChange={(e) => { setGroupName(e.target.value); setError(""); }}
-                  placeholder="Analysts Team"
-                  className="flex-1 px-3 py-2.5 text-sm text-foreground outline-none"
-                  autoFocus
-                />
-              </div>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => { setGroupName(e.target.value); setError(""); }}
+                placeholder="Analysts Team"
+                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground outline-none"
+                autoFocus
+              />
               <p className="mt-2 text-xs text-muted-foreground">
-                Full name: <span className="font-mono">dp-{groupName || "..."}</span>
+                Use any clear name — no prefix required.
               </p>
               {isGlobalAdmin && selectedOrgName && (
                 <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground bg-new-bg rounded-lg px-3 py-2">

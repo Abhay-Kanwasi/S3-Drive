@@ -29,7 +29,7 @@ from tests.conftest import (
     TestSession,
 )
 from db.models import (
-    Org, UserGroup, GroupMembership, FolderGrant, UserNotification,
+    Organization, UserGroup, GroupMembership, FolderGrant, UserNotification,
 )
 
 
@@ -46,14 +46,31 @@ GROUPS_API = "/api/v2/explorer/admin/groups"
 
 @pytest.fixture
 def seed_org(db):
-    org = Org(
-        subscription_id="sub-001",
+    """Seed org + owned users for FK integrity."""
+    from db.models import Organization, User
+    from core.auth import ROLE_SUPER_ADMIN, ROLE_MASTER_ADMIN, ROLE_ADMIN, ROLE_USER
+    from tests.conftest import SUPER_ADMIN, MASTER_ADMIN, ORG_ADMIN, USER_RW, USER_RW_2
+
+    org = Organization(
+        id=1,
+        org_key="org-001",
         org_name="TestOrg",
         bucket_name="test-bucket",
         region="us-east-1",
-        onboarded_by=1,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    for u in (
+        User(id=1, username="SuperAdmin", email="super@test.com", role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=2, username="MasterAdmin", email="master@test.com", role=ROLE_MASTER_ADMIN, organization_id=1, active=True),
+        User(id=3, username="OrgAdmin", email="orgadmin@test.com", role=ROLE_ADMIN, organization_id=1, active=True),
+        User(id=10, username="User1", email="user1@test.com", role=ROLE_USER, organization_id=1, active=True),
+        User(id=11, username="User2", email="user2@test.com", role=ROLE_USER, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = 1
     db.commit()
     db.refresh(org)
     return org
@@ -62,7 +79,7 @@ def seed_org(db):
 @pytest.fixture
 def seed_group_with_members(db, seed_org, seed_uam_users):
     """Create a group with USER_RW and USER_RW_2 as members."""
-    group = UserGroup(name="dp-NotifGroup", org_id=seed_org.id, created_by=1)
+    group = UserGroup(name="NotifGroup", org_id=seed_org.id, created_by=1)
     db.add(group)
     db.commit()
     db.refresh(group)
@@ -140,11 +157,12 @@ async def test_member_addition_sends_notifications(
     client_as, db, seed_org, seed_group_with_grant, seed_uam_users, mock_s3,
 ):
     """Adding a new user to a group with existing grants should notify them."""
-    from core.auth import UAMUser
+    from db.models import User
+    from core.auth import ROLE_USER
     new_user_id = 30
-    db.merge(UAMUser(
-        id=new_user_id, user_name="NewUser", email="new@test.com",
-        role=2, subscription_id="sub-001", active=True,
+    db.merge(User(
+        id=new_user_id, username="NewUser", email="new@test.com",
+        role=ROLE_USER, organization_id=seed_org.id, active=True,
     ))
     db.commit()
 

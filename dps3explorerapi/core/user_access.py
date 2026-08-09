@@ -1,9 +1,8 @@
 """
-S3 Explorer user access — separate from UAM account status.
+S3 Explorer access layers (kept separate — do not collapse):
 
-- UAM: user_data.active (read-only here; UAM owns writes)
-- S3 Explorer admin deactivate: s3_user_deactivation row only
-- Auth checks both on every request (same DB, no polling)
+- users.active          = account-level enable/disable (owned table)
+- s3_user_deactivation  = Explorer-access-only deactivation + grace window
 """
 
 from datetime import datetime, timezone
@@ -34,9 +33,9 @@ def is_s3_deactivated(db: Session, user_id: int) -> bool:
     )
 
 
-def effective_s3_access(uam_active: Optional[bool], s3_deactivated: bool) -> bool:
-    """True when the user may use S3 Explorer (UAM active and not S3-deactivated)."""
-    return bool(uam_active) and not s3_deactivated
+def effective_s3_access(account_active: Optional[bool], s3_deactivated: bool) -> bool:
+    """True when the user may use S3 Explorer (account active and not S3-deactivated)."""
+    return bool(account_active) and not s3_deactivated
 
 
 def get_s3_deactivated_at(db: Session, user_id: int) -> Optional[datetime]:

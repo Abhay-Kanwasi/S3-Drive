@@ -6,8 +6,10 @@ import Sidebar from "./sidebar";
 import Content from "./content";
 import DragAndDrop from "@/components/dnd";
 import { ApplicationContext } from "@/services/ContextProvider";
-import { hostname, getUploadConstraints } from "@/services/server";
+import { getUploadConstraints } from "@/services/server";
 import { getExplorerAccess } from "@/services/access";
+import { getAdminMe } from "@/services/admin";
+import { getSelectedUserId, setSelectedUserId } from "@/services/auth";
 import Delete from "@/components/delete";
 import Information from "@/components/info";
 import Dialog from "@/components/dialog";
@@ -15,17 +17,121 @@ import NewFolder from "@/components/newfolder";
 import FileViewerModal from "@/components/FileViewerModal";
 import S3ExplorerAccessBlocked from "@/components/S3ExplorerAccessBlocked";
 
+function DevUserSelector({ initialValue, onSaved }) {
+  const [value, setValue] = useState(initialValue || "");
+
+  const handleSave = () => {
+    const id = String(value || "").trim();
+    if (!id || !/^\d+$/.test(id)) {
+      alert("Enter a numeric user id");
+      return;
+    }
+    setSelectedUserId(id);
+    onSaved?.(id);
+    window.location.reload();
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full w-full gap-4 px-6 bg-background">
+      <div className="w-full max-w-sm border border-border rounded-xl p-6 bg-white shadow-sm space-y-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 mb-1">
+            Temporary · Dev only
+          </p>
+          <h1 className="text-lg font-semibold text-foreground">Dev user selector</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Stand-in for real auth. Requests send this id as the{" "}
+            <code className="text-xs bg-muted px-1 rounded">X-User-Id</code> header.
+          </p>
+        </div>
+        <label className="block text-sm font-medium text-foreground">
+          User ID
+          <input
+            type="text"
+            inputMode="numeric"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="e.g. 1"
+            className="mt-1.5 w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-1 focus:ring-ring"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={handleSave}
+          className="w-full px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+        >
+          Save &amp; reload
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DevUserBar({ currentUserId, username }) {
+  const [draft, setDraft] = useState(String(currentUserId || ""));
+  const [open, setOpen] = useState(false);
+
+  const handleSave = () => {
+    const id = String(draft || "").trim();
+    if (!id || !/^\d+$/.test(id)) {
+      alert("Enter a numeric user id");
+      return;
+    }
+    setSelectedUserId(id);
+    window.location.reload();
+  };
+
+  return (
+    <div className="absolute top-2 right-2 z-30">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-[11px] px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 text-amber-900 font-medium shadow-sm"
+        title="Temporary identity stand-in"
+      >
+        Dev user: {username || currentUserId}
+      </button>
+      {open && (
+        <div className="mt-1 w-56 rounded-lg border border-border bg-white p-3 shadow-lg space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+            Change user id
+          </p>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="w-full px-2 py-1.5 border border-border rounded text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full px-2 py-1.5 bg-new-button-bg rounded text-xs font-semibold"
+          >
+            Save &amp; reload
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Layout({ children }) {
   const queryClient = useQueryClient();
   const [dragging, setDragging] = useState(false);
-  const [userdata, setUserdata] = useState({});
   const [mounted, setMounted] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
 
   const {
     userid,
     setUserid,
     setUsername,
-    setAuthToken,
+    username,
+    currentUserId,
+    setCurrentUserId,
     isAdmin,
     setIsAdmin,
     files,
@@ -40,30 +146,58 @@ export default function Layout({ children }) {
     viewerFile,
     setViewerFile,
     basePath,
-    authToken,
   } = useContext(ApplicationContext);
 
-  const { data: access, isLoading: accessLoading } = useQuery(
-    "explorer-access",
+  useEffect(() => {
+    setMounted(true);
+    const id = getSelectedUserId();
+    setSelectedId(id);
+    if (id) setCurrentUserId(id);
+  }, []);
+
+  const hasUser = Boolean(selectedId);
+
+  const { data: access, isLoading: accessLoading, isError: accessError } = useQuery(
+    ["explorer-access", selectedId],
     getExplorerAccess,
     {
-      enabled: mounted,
+      enabled: mounted && hasUser,
       retry: false,
       staleTime: 60 * 1000,
     },
   );
 
+  const { data: adminMe } = useQuery(
+    ["admin-me", selectedId],
+    getAdminMe,
+    {
+      enabled: mounted && hasUser && access?.can_access === true,
+      retry: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  );
+
   useEffect(() => {
-    if (access?.id && !userid) {
+    if (access?.id) {
       setUserid(access.id);
       if (access.user_name) setUsername(access.user_name);
     }
   }, [access]);
 
+  useEffect(() => {
+    if (adminMe) {
+      setIsAdmin(Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin));
+      if (adminMe.user_name) setUsername(adminMe.user_name);
+    } else if (access && !accessError) {
+      // Non-admin: /admin/me will 403; treat as non-admin
+      if (access.is_admin != null) setIsAdmin(Boolean(access.is_admin));
+    }
+  }, [adminMe, access, accessError]);
+
   const { data: constraints } = useQuery("upload-constraints", getUploadConstraints, {
     staleTime: 5 * 60 * 1000,
     retry: 1,
-    enabled: mounted && access?.can_access === true,
+    enabled: mounted && hasUser && access?.can_access === true,
   });
 
   const handleUpload = async (e) => {
@@ -75,7 +209,6 @@ export default function Layout({ children }) {
       return;
     }
     var _files = [];
-    // var _duplicates = [];
     var safeObj = {};
     if (!constraints?.allowed_extensions) {
       setContexterrormodal(true);
@@ -93,7 +226,6 @@ export default function Layout({ children }) {
           progress: 0,
         };
         _files.push(_fileObj);
-        // _duplicates.push(_file.name);
         setProgress((prev) => ({ ...prev, [_file.name]: 0 }));
         safeObj = {
           ...safeObj,
@@ -111,80 +243,12 @@ export default function Layout({ children }) {
     queryClient.invalidateQueries(["contents", path]);
   };
 
-  const checkAdminStatus = async (token) => {
-    try {
-      const res = await fetch(`${hostname}/uam/items`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const hasAdmin = Array.isArray(data) && data.some((item) => item.url_path === "/admin");
-        setIsAdmin(hasAdmin);
-      }
-    } catch (e) {
-      // non-critical
-    }
-  };
-
-  const initializeUser = (userData) => {
-    if (userData && userData.userId) {
-      setUserdata(userData);
-      setUserid(userData.userId);
-      setUsername(userData.userName);
-      if (userData.token) {
-        localStorage.setItem("authToken", userData.token);
-        setAuthToken(userData.token);
-        checkAdminStatus(userData.token);
-      } else {
-        const storedToken = localStorage.getItem("authToken");
-        if (storedToken) checkAdminStatus(storedToken);
-      }
-    }
-  };
-
-  useEffect(() => {
-    // Cross-origin: receive auth data from parent app via postMessage
-    const allowedOrigins = [
-      "https://green.datapoem.ai",
-      "https://qa.datapoem.ai",
-      "https://devapp.datapoem.ai",
-      "https://qaapp.datapoem.ai",
-      "https://app.datapoem.ai",
-      "https://insights.datapoem.ai",
-      "http://localhost:8080",
-    ];
-    const handleMessage = (event) => {
-      if (!allowedOrigins.includes(event.origin)) return;
-      if (event.data?.type === "AUTH_USER_DATA" && event.data.payload) {
-        localStorage.setItem("userData", JSON.stringify(event.data.payload));
-        initializeUser(event.data.payload);
-      }
-    };
-    window.addEventListener("message", handleMessage);
-
-    // Tell parent we're ready
-    if (window.parent !== window) {
-      window.parent.postMessage({ type: "EXPLORER_READY" }, "*");
-    }
-
-    // Fallback: check localStorage (same-origin or already received data)
-    var _user = JSON.parse(localStorage.getItem("userData"));
-    if (_user != null) {
-      initializeUser(_user);
-    } else {
-      const storedToken = localStorage.getItem("authToken");
-      if (storedToken) checkAdminStatus(storedToken);
-    }
-
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   if (!mounted) {
     return <div className="h-full w-full bg-background" aria-hidden="true" />;
+  }
+
+  if (!hasUser) {
+    return <DevUserSelector initialValue="" />;
   }
 
   if (accessLoading) {
@@ -194,8 +258,24 @@ export default function Layout({ children }) {
       </div>
     );
   }
-  if (access && !access.can_access) {
-    return <S3ExplorerAccessBlocked access={access} />;
+
+  if (accessError || (access && !access.can_access)) {
+    return (
+      <div className="relative h-full w-full">
+        <DevUserBar currentUserId={selectedId} username={username} />
+        {access && !access.can_access ? (
+          <S3ExplorerAccessBlocked access={access} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-3 px-6">
+            <p className="text-foreground font-medium">Unable to load identity</p>
+            <p className="text-sm text-muted-foreground text-center max-w-sm">
+              Check that user id {selectedId} exists and is active, then try another id.
+            </p>
+            <DevUserSelector initialValue={selectedId || ""} />
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -213,13 +293,13 @@ export default function Layout({ children }) {
         setDragging(false);
         handleUpload(e);
       }}
-      className="flex flex-row h-full w-full overflow-hidden"
+      className="relative flex flex-row h-full w-full overflow-hidden"
     >
+      <DevUserBar currentUserId={currentUserId || selectedId} username={username || userid} />
       {dragging ? (
         <DragAndDrop />
       ) : (
         <>
-          {/* <Header /> */}
           <Sidebar />
           <Content />
           <Delete />

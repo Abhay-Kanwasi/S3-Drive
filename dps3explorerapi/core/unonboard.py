@@ -26,7 +26,6 @@ from core.auth import (
     GLOBAL_ADMIN_ROLE_IDS,
     ROLE_MASTER_ADMIN,
     ROLE_SUPER_ADMIN,
-    UAMUser,
 )
 from core.config import settings
 from core.otp import create_and_send_otp, verify_otp
@@ -38,6 +37,7 @@ from db.models import (
     GroupMembership,
     Organization,
     UnonboardRequest,
+    User,
     UserGroup,
     UserNotification,
 )
@@ -73,15 +73,15 @@ def parse_unonboard_request_id(purpose: str) -> int:
 def list_master_admin_approvers(db: Session, requester: CurrentUser) -> List[dict]:
     """Other global master/super admins who may approve un-onboard."""
     rows = (
-        db.query(UAMUser)
+        db.query(User)
         .filter(
-            UAMUser.active == True,
-            UAMUser.role.in_([ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN]),
-            UAMUser.email.isnot(None),
-            UAMUser.email != "",
-            UAMUser.id != requester.id,
+            User.active == True,
+            User.role.in_([ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN]),
+            User.email.isnot(None),
+            User.email != "",
+            User.id != requester.id,
         )
-        .order_by(UAMUser.user_name, UAMUser.id)
+        .order_by(User.username, User.id)
         .all()
     )
     from core.auth import ROLE_LABELS
@@ -89,7 +89,7 @@ def list_master_admin_approvers(db: Session, requester: CurrentUser) -> List[dic
     return [
         {
             "id": u.id,
-            "user_name": u.user_name or "",
+            "user_name": u.username or "",
             "email": u.email or "",
             "role_id": u.role,
             "role_label": ROLE_LABELS.get(u.role, "user"),
@@ -98,13 +98,13 @@ def list_master_admin_approvers(db: Session, requester: CurrentUser) -> List[dic
     ]
 
 
-def _resolve_approver(db: Session, approver_user_id: int, requester: CurrentUser) -> UAMUser:
+def _resolve_approver(db: Session, approver_user_id: int, requester: CurrentUser) -> User:
     if approver_user_id == requester.id:
         raise HTTPException(
             status_code=400,
             detail="Choose a different master admin; you cannot approve your own un-onboard request.",
         )
-    approver = db.query(UAMUser).filter(UAMUser.id == approver_user_id).first()
+    approver = db.query(User).filter(User.id == approver_user_id).first()
     if not approver or not approver.active:
         raise HTTPException(status_code=400, detail="Approver not found or inactive.")
     if approver.role not in (ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN):
@@ -217,7 +217,7 @@ def create_unonboard_request(
         org_id=org.id,
         org_name=org.org_name,
         bucket_name=org.bucket_name,
-        subscription_id=org.subscription_id,
+        org_key=org.org_key,
         requester_user_id=requester.id,
         approver_user_id=approver.id,
         status=STATUS_PENDING,
@@ -246,7 +246,7 @@ def create_unonboard_request(
 
     stats = _org_unonboard_stats(db, org.id)
     base = _approval_base_url(request_base_url)
-    greeting = f" {_esc(approver.user_name)}" if approver.user_name else ""
+    greeting = f" {_esc(approver.username)}" if approver.username else ""
     requester_label = requester.user_name or requester.email or "A master admin"
     html = unonboard_approval_email_body.format(
         greeting=greeting,
@@ -290,13 +290,13 @@ def unonboard_summary(db: Session, request_id: int) -> dict:
         stats = _org_unonboard_stats(db, org.id)
     else:
         stats = {"grant_count": 0, "group_count": 0}
-    requester = db.query(UAMUser).filter(UAMUser.id == req.requester_user_id).first()
+    requester = db.query(User).filter(User.id == req.requester_user_id).first()
     return {
         "org_name": org_name,
         "bucket_name": bucket_name,
         "grant_count": stats["grant_count"],
         "group_count": stats["group_count"],
-        "requester_name": (requester.user_name or requester.email) if requester else "Unknown",
+        "requester_name": (requester.username or requester.email) if requester else "Unknown",
     }
 
 
@@ -340,7 +340,7 @@ def apply_unonboard(db: Session, request_id: int) -> tuple:
 
     req.org_name = org.org_name
     req.bucket_name = org.bucket_name
-    req.subscription_id = org.subscription_id
+    req.org_key = org.org_key
 
     _purge_org_explorer_data(db, org.id)
     db.delete(org)

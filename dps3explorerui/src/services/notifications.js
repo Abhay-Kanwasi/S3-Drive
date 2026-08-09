@@ -1,13 +1,7 @@
+import { getAuthHeaders } from "@/services/auth";
+
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const notifBase = `${API_HOSTNAME}/explorer/notifications`;
-
-function getAuthHeaders() {
-  const token = localStorage.getItem("authToken");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 export const getNotifications = async () => {
   const response = await fetch(notifBase, {

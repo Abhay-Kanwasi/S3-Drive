@@ -18,6 +18,23 @@ from tests.conftest import (
 PREFIX = "/api/v2/explorer"
 BROWSE = f"{PREFIX}/browse"
 
+@pytest.fixture
+def seed_user_rw_grant(db, seed_org, seed_admin_folder):
+    """Grant USER_RW read_write on AdminFolder/ (replaces legacy seed_user_rw_grant)."""
+    from db.models import UserGroup, GroupMembership, FolderGrant
+    group = UserGroup(name="UserRWGrant", org_id=seed_org.id, created_by=1)
+    db.add(group)
+    db.flush()
+    db.add(GroupMembership(group_id=group.id, user_id=USER_RW.id, added_by=1))
+    db.add(FolderGrant(
+        group_id=group.id, org_id=seed_org.id, prefix="AdminFolder/",
+        access_level="read_write", created_by=1,
+    ))
+    db.commit()
+    return group
+
+
+
 
 # =========================================================================
 # FOLDER CREATION
@@ -52,7 +69,7 @@ class TestFolderCreate:
 
     @pytest.mark.asyncio
     async def test_user_can_create_subfolder_under_admin_folder(
-        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_explorer_entry,
+        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_user_rw_grant,
     ):
         async with client_as(USER_RW) as c:
             resp = await c.post(f"{BROWSE}/folders/create", json={
@@ -89,7 +106,7 @@ class TestFolderCreate:
 
     @pytest.mark.asyncio
     async def test_user_can_nest_subfolders_deep(
-        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_explorer_entry,
+        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_user_rw_grant,
     ):
         """Users can create unlimited nesting under admin root."""
         async with client_as(USER_RW) as c:
@@ -209,7 +226,7 @@ class TestFolderRename:
     ):
         """USER_RW_2 with write grant can rename USER_RW's folder."""
         from db.models import UserGroup, GroupMembership, FolderGrant
-        group = UserGroup(name="dp-RenameGroup", org_id=seed_org.id, created_by=1)
+        group = UserGroup(name="RenameGroup", org_id=seed_org.id, created_by=1)
         db.add(group)
         db.commit()
         db.refresh(group)
@@ -289,7 +306,7 @@ class TestFolderDelete:
     ):
         """USER_RW_2 with write grant can trash USER_RW's folder."""
         from db.models import UserGroup, GroupMembership, FolderGrant
-        group = UserGroup(name="dp-TrashGroup", org_id=seed_org.id, created_by=1)
+        group = UserGroup(name="TrashGroup", org_id=seed_org.id, created_by=1)
         db.add(group)
         db.commit()
         db.refresh(group)
@@ -331,7 +348,7 @@ class TestBrowseSkeleton:
 
     @pytest.mark.asyncio
     async def test_user_sees_files_in_user_folder(
-        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_user_folder, seed_explorer_entry,
+        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_user_folder, seed_user_rw_grant,
     ):
         mock_s3.put_object(Bucket="test-bucket", Key="AdminFolder/UserSub/", Body=b"")
         mock_s3.put_object(Bucket="test-bucket", Key="AdminFolder/UserSub/report.csv", Body=b"data")
@@ -348,7 +365,7 @@ class TestBrowseSkeleton:
 
     @pytest.mark.asyncio
     async def test_user_sees_files_in_admin_folder(
-        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_explorer_entry,
+        self, client_as, mock_s3, seed_org, seed_admin_folder, seed_user_rw_grant,
     ):
         mock_s3.put_object(Bucket="test-bucket", Key="AdminFolder/shared.csv", Body=b"data")
 
@@ -420,7 +437,7 @@ class TestTrash:
 
     @pytest.mark.asyncio
     async def test_restore_single_file(
-        self, client_as, mock_s3, seed_org, seed_explorer_entry,
+        self, client_as, mock_s3, seed_org, seed_user_rw_grant,
     ):
         trash_key = f"trash/{seed_org.id}/{USER_RW.id}/AdminFolder/restore-me.csv"
         mock_s3.put_object(

@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useState, useEffect } from "react";
+import { getSelectedUserId, setSelectedUserId as persistUserId } from "@/services/auth";
 
 export const ApplicationContext = createContext(null);
 
@@ -7,12 +8,25 @@ export function ContextProvider({ children }) {
   const [folder, setFolder] = useState("");
   const [userid, setUserid] = useState();
   const [username, setUsername] = useState();
-  const [authToken, setAuthToken] = useState("");
+  const [currentUserId, setCurrentUserIdState] = useState("");
 
   useEffect(() => {
-    const stored = localStorage.getItem("authToken");
-    if (stored) setAuthToken(stored);
+    const stored = getSelectedUserId();
+    if (stored) {
+      setCurrentUserIdState(stored);
+      setUserid(Number(stored));
+    }
   }, []);
+
+  const setCurrentUserId = (userId) => {
+    const id = userId == null ? "" : String(userId).trim();
+    persistUserId(id || null);
+    setCurrentUserIdState(id);
+    if (id && /^\d+$/.test(id)) {
+      setUserid(Number(id));
+    }
+  };
+
   const [path, setPath] = useState("");
   const [basePath, setBasePath] = useState("");
   const [trashView, setTrashView] = useState(false);
@@ -46,8 +60,8 @@ export function ContextProvider({ children }) {
         setUserid,
         username,
         setUsername,
-        authToken,
-        setAuthToken,
+        currentUserId,
+        setCurrentUserId,
         folder,
         setFolder,
         path,

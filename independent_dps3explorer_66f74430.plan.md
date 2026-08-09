@@ -4,31 +4,31 @@ overview: Decouple dps3explorer from the external UAM Postgres and JWT by giving
 todos:
   - id: schema-models
     content: Add User/Organization models, repoint FKs, delete legacy + s3_org, set DB_SCHEMA=explorer in db/models.py and core/config.py
-    status: pending
+    status: completed
   - id: alembic-baseline
     content: Configure alembic/env.py for owned schema and write 0001_initial baseline creating all tables + platform_settings singleton; add scripts/create_admin.py bootstrap
-    status: pending
+    status: completed
   - id: core-auth
     content: Rewrite core/auth.py to X-User-Id identity, update core/user_access.py and core/permissions.py (drop s3_explorer fallback)
-    status: pending
+    status: completed
   - id: endpoints
     content: Update users.py (CRUD+roles), admin.py (organizations), groups.py, browse.py and all endpoints to new get_current_user; remove only `/services/v2/*` token routes and `/uam/folders` after legacy-access transformation, while keeping authenticated `/services/*`
-    status: pending
+    status: completed
   - id: tests
     content: Replace UAM fixtures with owned users/orgs, header-based auth override, schema explorer in tests/conftest.py and modules
-    status: pending
+    status: completed
   - id: ui-auth
     content: Replace serviceToken cookie/postMessage with X-User-Id + dev user selector; update all src/services/*.js clients; remove legacy/org-less branches
-    status: pending
+    status: completed
   - id: ui-admin
     content: Add Create User + Edit Role UI, owned organizations onboarding, rework status strings, remove parent-app redirect
-    status: pending
+    status: completed
   - id: branding-sweep
     content: Remove/parameterize all datapoem/rhymedatapoem references across API+UI+CI+docs; verify with repo-wide grep returning zero
-    status: pending
+    status: completed
   - id: env-docs
     content: Add backend and frontend .env.example, update READMEs, document bootstrap + migration steps
-    status: pending
+    status: completed
 isProject: false
 ---
 

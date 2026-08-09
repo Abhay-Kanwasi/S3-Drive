@@ -1,13 +1,17 @@
+import { authHeaders, getSelectedUserId } from "@/services/auth";
+
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 export const hostname = `${API_HOSTNAME}/explorer`;
 export const CHUNK_SIZE = 14 * 1024 * 1024;
 
-function authHeaders(extraHeaders = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...extraHeaders,
-  };
+function currentUserIdPayload() {
+  const id = getSelectedUserId();
+  return id != null ? Number(id) : 0;
+}
+
+function currentUserIdString() {
+  const id = getSelectedUserId();
+  return id != null ? String(id) : "0";
 }
 
 export const getUploadConstraints = async () => {
@@ -17,14 +21,9 @@ export const getUploadConstraints = async () => {
   return response.json();
 };
 
+/** @deprecated UAM folders removed — use browse/admin org listing via Queries.loadBuckets */
 export const getUAMFolderContent = async () => {
-  try {
-    const url = `${hostname}/uam/folders`;
-    const response = await fetch(url, { headers: authHeaders() });
-    return response.json();
-  } catch (err) {
-    return Promise.resolve([]);
-  }
+  return Promise.resolve([]);
 };
 
 export const getListofFolder = async () => {
@@ -55,7 +54,7 @@ export const checkIfFolderExists = async (foldername, basePath) => {
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         name: foldername,
-        user_id: 0,
+        user_id: currentUserIdPayload(),
         basePath: basePath,
       }),
     });
@@ -73,7 +72,7 @@ export const createFolder = async (foldername, basePath) => {
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         name: foldername,
-        user_id: 0,
+        user_id: currentUserIdPayload(),
         basePath: basePath,
       }),
     });
@@ -91,7 +90,7 @@ export const getFolderContent = async (foldername, basePath) => {
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         name: foldername,
-        user_id: 0,
+        user_id: currentUserIdPayload(),
         basePath: basePath,
       }),
     });
@@ -113,7 +112,7 @@ export const delete_by_filename = async (
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       author: username,
-      userid: "0",
+      userid: currentUserIdString(),
       filename: _filename,
       file_key: _file_key,
       basePath: basePath,
@@ -141,7 +140,7 @@ export const uploadByPart = async (
   try {
     const url = `${hostname}/services/initiate`;
     const body = {
-      userid: 0,
+      userid: currentUserIdPayload(),
       name: filepath,
       author: _author,
       basePath: basePath,
@@ -171,13 +170,12 @@ export const uploadChunks = async (
   formData.append("count", String(counter));
   formData.append("tag", uploadId);
   formData.append("basePath", basePath);
-  const token = localStorage.getItem("authToken");
   const url = `${hostname}/services/chunks`;
   let response;
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: authHeaders(),
       body: formData,
     });
   } catch (err) {
@@ -224,7 +222,7 @@ export const finishUpload = async (
         file_key: filepath,
         uploadID: uploadId,
         e_tag: e_tags,
-        userid: 0,
+        userid: currentUserIdPayload(),
         basePath: basePath,
       }),
     });

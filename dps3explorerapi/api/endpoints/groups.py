@@ -1,7 +1,7 @@
 """
 Group Management endpoints (Phase 3).
 
-- POST   /admin/groups                  — create group (dp- prefix auto-applied)
+- POST   /admin/groups                  — create group
 - GET    /admin/groups?org_id=          — list groups for org
 - GET    /admin/groups/{id}             — get group detail
 - PUT    /admin/groups/{id}             — rename group
@@ -28,16 +28,15 @@ import logging
 from core.audit import audit_log, audit_actor_fields
 from core.auth import (
     CurrentUser, get_current_user, require_role,
-    GLOBAL_ADMIN_ROLE_IDS, UAMUser,
+    GLOBAL_ADMIN_ROLE_IDS,
 )
 from db.postgresdb import get_db, Session as DBSession
-from db.models import Organization, UserGroup, GroupMembership, FolderGrant, UserNotification
+from db.models import Organization, User, UserGroup, GroupMembership, FolderGrant, UserNotification
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-DP_PREFIX = "dp-"
 GROUP_ADMIN_ROLES = ["admin", "master_admin", "super_admin"]
 
 
@@ -49,7 +48,7 @@ def _get_org_for_admin(org_id: int, user: CurrentUser, db: Session) -> Organizat
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
-        if user.subscription_id != org.subscription_id:
+        if user.organization_id != org.id and user.subscription_id != org.org_key:
             raise HTTPException(status_code=403, detail="No access to this organization")
     return org
 
@@ -84,7 +83,9 @@ def _send_notifications(user_ids: list, org_id: int, org_name: str, grants: list
                         title="New folder access granted",
                         message=f"You now have {grant.access_level} access to '{grant.prefix}' in {org_name}",
                     ))
-            notif_db.bulk_save_objects(rows)
+            # add_all (not bulk_save_objects) so Identity/PK defaults and ORM
+            # events fire — required for SQLite test Identity polyfill and Postgres.
+            notif_db.add_all(rows)
             notif_db.flush()
             for uid in user_ids:
                 count = notif_db.query(UserNotification).filter_by(user_id=uid).count()
@@ -249,7 +250,7 @@ async def create_group(
 ):
     org = _get_org_for_admin(payload.org_id, user, db)
 
-    full_name = payload.name if payload.name.startswith(DP_PREFIX) else f"{DP_PREFIX}{payload.name}"
+    full_name = payload.name.strip()
 
     existing = db.query(UserGroup).filter(
         UserGroup.org_id == org.id, UserGroup.name == full_name,
@@ -264,10 +265,10 @@ async def create_group(
     added_count = 0
     if payload.member_user_ids:
         unique_ids = list(dict.fromkeys(payload.member_user_ids))
-        org_users = db.query(UAMUser.id).filter(
-            UAMUser.subscription_id == org.subscription_id,
-            UAMUser.active == True,
-            UAMUser.id.in_(unique_ids),
+        org_users = db.query(User.id).filter(
+            User.organization_id == org.id,
+            User.active == True,
+            User.id.in_(unique_ids),
         ).all()
         valid_ids = {u.id for u in org_users}
         for uid in unique_ids:
@@ -325,11 +326,11 @@ async def get_group_detail(
     memberships = db.query(GroupMembership).filter(GroupMembership.group_id == group.id).all()
     members = []
     for m in memberships:
-        uam = db.query(UAMUser).filter(UAMUser.id == m.user_id).first()
+        member = db.query(User).filter(User.id == m.user_id).first()
         members.append(MemberOut(
             id=m.id, user_id=m.user_id,
-            user_name=uam.user_name if uam else None,
-            email=uam.email if uam else None,
+            user_name=member.username if member else None,
+            email=member.email if member else None,
             added_at=m.added_at.isoformat() if m.added_at else None,
         ))
 
@@ -365,7 +366,7 @@ async def rename_group(
     db: Session = Depends(get_db),
 ):
     group = _get_group(group_id, user, db)
-    new_name = payload.name if payload.name.startswith(DP_PREFIX) else f"{DP_PREFIX}{payload.name}"
+    new_name = payload.name.strip()
 
     if new_name != group.name:
         conflict = db.query(UserGroup).filter(
@@ -445,11 +446,11 @@ async def list_members(
     memberships = db.query(GroupMembership).filter(GroupMembership.group_id == group.id).all()
     result = []
     for m in memberships:
-        uam = db.query(UAMUser).filter(UAMUser.id == m.user_id).first()
+        member = db.query(User).filter(User.id == m.user_id).first()
         result.append(MemberOut(
             id=m.id, user_id=m.user_id,
-            user_name=uam.user_name if uam else None,
-            email=uam.email if uam else None,
+            user_name=member.username if member else None,
+            email=member.email if member else None,
             added_at=m.added_at.isoformat() if m.added_at else None,
         ))
     return result
@@ -468,10 +469,10 @@ async def add_members(
 
     unique_ids = list(dict.fromkeys(payload.user_ids))
 
-    org_users = db.query(UAMUser.id).filter(
-        UAMUser.subscription_id == org.subscription_id,
-        UAMUser.active == True,
-        UAMUser.id.in_(unique_ids),
+    org_users = db.query(User.id).filter(
+        User.organization_id == org.id,
+        User.active == True,
+        User.id.in_(unique_ids),
     ).all()
     valid_ids = {u.id for u in org_users}
 
@@ -671,24 +672,24 @@ async def search_org_users(
     """Paginated user search within an org for the member picker UI."""
     org = _get_org_for_admin(org_id, user, db)
 
-    q = db.query(UAMUser).filter(
-        UAMUser.subscription_id == org.subscription_id,
-        UAMUser.active == True,
+    q = db.query(User).filter(
+        User.organization_id == org.id,
+        User.active == True,
     )
     if search:
         term = f"%{search}%"
         q = q.filter(
-            (UAMUser.user_name.ilike(term)) | (UAMUser.email.ilike(term))
+            (User.username.ilike(term)) | (User.email.ilike(term))
         )
 
     total = q.count()
-    users = q.order_by(UAMUser.user_name).offset((page - 1) * page_size).limit(page_size).all()
+    users = q.order_by(User.username).offset((page - 1) * page_size).limit(page_size).all()
 
     return {
         "users": [
             {
                 "id": u.id,
-                "user_name": u.user_name,
+                "user_name": u.username,
                 "email": u.email,
                 "role": u.role,
             }

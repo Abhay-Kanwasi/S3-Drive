@@ -5,10 +5,9 @@ import { useQuery, useMutation, useQueryClient } from "react-query";
 import { Database, Plus, Loader2, Search, Unlink } from "lucide-react";
 import UnonboardModal from "./UnonboardModal";
 import {
-  getOnboardedOrgs,
+  getOrganizations,
   getAvailableBuckets,
-  getAvailableSubscribers,
-  onboardOrg,
+  createOrganization,
 } from "@/services/admin";
 import { useAdminMe } from "./AdminContext";
 
@@ -26,7 +25,7 @@ export default function AdminPage() {
     }
   }, [me, isGlobalAdmin]);
 
-  const { data: orgs, isLoading } = useQuery("onboarded-orgs", getOnboardedOrgs);
+  const { data: orgs, isLoading } = useQuery("onboarded-orgs", getOrganizations);
 
   return (
     <div className="max-w-5xl">
@@ -58,6 +57,7 @@ export default function AdminPage() {
             <thead>
               <tr className="bg-new-table-header-bg">
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Organization</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Org key</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Bucket Name</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Region</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Status</th>
@@ -69,6 +69,7 @@ export default function AdminPage() {
               {orgs.map((org) => (
                 <tr key={org.id} className="hover:bg-new-bg-light/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{org.org_name}</td>
+                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{org.org_key || org.subscription_id || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{org.bucket_name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{org.region}</td>
                   <td className="px-4 py-3">
@@ -104,7 +105,7 @@ export default function AdminPage() {
           <Database className="w-10 h-10 text-muted-foreground mb-3" strokeWidth={1} />
           <p className="text-foreground font-medium">No organizations onboarded</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            Link your first organization to an S3 bucket to get started.
+            Create an organization and bind an S3 bucket to get started.
           </p>
           {isGlobalAdmin && (
             <button
@@ -133,33 +134,16 @@ export default function AdminPage() {
 function OnboardWizard({ onClose }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
-  const [selectedOrg, setSelectedOrg] = useState(null);
+  const [orgKey, setOrgKey] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [selectedBucket, setSelectedBucket] = useState(null);
-  const [orgSearch, setOrgSearch] = useState("");
   const [bucketSearch, setBucketSearch] = useState("");
   const [error, setError] = useState("");
-
-  const { data: subscribers, isLoading: loadingSubs } = useQuery(
-    "available-subscribers",
-    getAvailableSubscribers
-  );
 
   const { data: buckets, isLoading: loadingBuckets } = useQuery(
     "available-buckets",
     getAvailableBuckets
   );
-
-  const filteredSubscribers = useMemo(() => {
-    if (!subscribers) return [];
-    if (!orgSearch) return subscribers;
-    const q = orgSearch.toLowerCase();
-    return subscribers.filter(
-      (s) =>
-        (s.organization_name || "").toLowerCase().includes(q) ||
-        (s.name || "").toLowerCase().includes(q) ||
-        s.subscription_id.toLowerCase().includes(q)
-    );
-  }, [subscribers, orgSearch]);
 
   const filteredBuckets = useMemo(() => {
     if (!buckets) return [];
@@ -168,10 +152,9 @@ function OnboardWizard({ onClose }) {
     return buckets.filter((b) => b.name.toLowerCase().includes(q));
   }, [buckets, bucketSearch]);
 
-  const mutation = useMutation(onboardOrg, {
+  const mutation = useMutation(createOrganization, {
     onSuccess: () => {
       queryClient.invalidateQueries("onboarded-orgs");
-      queryClient.invalidateQueries("available-subscribers");
       queryClient.invalidateQueries("available-buckets");
       onClose();
     },
@@ -181,13 +164,17 @@ function OnboardWizard({ onClose }) {
   });
 
   const handleSubmit = () => {
-    if (!selectedOrg || !selectedBucket) return;
+    if (!orgKey.trim() || !orgName.trim() || !selectedBucket) return;
     setError("");
     mutation.mutate({
-      subscription_id: selectedOrg.subscription_id,
+      org_key: orgKey.trim(),
+      org_name: orgName.trim(),
       bucket_name: selectedBucket.name,
     });
   };
+
+  const canNext =
+    orgKey.trim().length > 0 && orgName.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -209,53 +196,35 @@ function OnboardWizard({ onClose }) {
 
         <div className="px-6 pb-4 min-h-[280px]">
           {step === 1 && (
-            <div>
-<label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">
-  Search organizations
-</label>
-<input
-  type="text"
-  value={orgSearch}
-  onChange={(e) => setOrgSearch(e.target.value)}
-  placeholder="Search by organization name..."
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1.5 mb-3">
-                Org properties read from Postgres on confirmation.
-              </p>
-              {loadingSubs ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredSubscribers.length > 0 ? (
-                <div className="space-y-1 max-h-44 overflow-y-auto">
-                  {filteredSubscribers.map((sub) => (
-                    <label
-                      key={sub.subscription_id}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md cursor-pointer transition-colors ${
-                        selectedOrg?.subscription_id === sub.subscription_id
-                          ? "bg-new-bg-light"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="org"
-                        className="accent-new-bg w-3.5 h-3.5"
-                        checked={selectedOrg?.subscription_id === sub.subscription_id}
-                        onChange={() => setSelectedOrg(sub)}
-                      />
-                      <span className="text-sm text-foreground">
-                        {sub.organization_name || sub.name || "Unnamed"}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground py-6 text-center">
-                  {orgSearch ? "No matching organizations." : "No organizations available."}
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">
+                  Org key
+                </label>
+                <input
+                  type="text"
+                  value={orgKey}
+                  onChange={(e) => setOrgKey(e.target.value)}
+                  placeholder="stable-external-id"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50 font-mono"
+                  autoFocus
+                />
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  Unique stable identifier for this organization.
                 </p>
-              )}
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">
+                  Organization name
+                </label>
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Acme Corp"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50"
+                />
+              </div>
             </div>
           )}
 
@@ -326,7 +295,7 @@ function OnboardWizard({ onClose }) {
           <button
             onClick={step === 1 ? () => setStep(2) : handleSubmit}
             disabled={
-              (step === 1 && !selectedOrg) ||
+              (step === 1 && !canNext) ||
               (step === 2 && !selectedBucket) ||
               mutation.isLoading
             }

@@ -2,10 +2,9 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, ShieldCheck, ShieldX, AlertCircle, LogIn } from "lucide-react";
+import { Loader2, ShieldCheck, ShieldX, AlertCircle } from "lucide-react";
 import { getApprovalReview, submitApprovalDecision } from "@/services/admin";
-
-const PARENT_APP_URL = process.env.NEXT_PUBLIC_PARENT_APP_URL || "";
+import { getSelectedUserId, setSelectedUserId } from "@/services/auth";
 
 export default function ApprovalReviewPage() {
   return (
@@ -26,7 +25,8 @@ function ApprovalReviewContent() {
   const [review, setReview] = useState(null);
   const [reviewError, setReviewError] = useState("");
   const [reviewLoading, setReviewLoading] = useState(true);
-  const [needsLogin, setNeedsLogin] = useState(false);
+  const [needsUser, setNeedsUser] = useState(false);
+  const [devUserDraft, setDevUserDraft] = useState(() => getSelectedUserId() || "");
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -35,6 +35,11 @@ function ApprovalReviewContent() {
   useEffect(() => {
     if (!id || !token || !action) {
       setReviewError("Missing approval link parameters.");
+      setReviewLoading(false);
+      return;
+    }
+    if (!getSelectedUserId()) {
+      setNeedsUser(true);
       setReviewLoading(false);
       return;
     }
@@ -50,7 +55,7 @@ function ApprovalReviewContent() {
       } catch (e) {
         if (cancelled) return;
         if (e?.status === 401) {
-          setNeedsLogin(true);
+          setNeedsUser(true);
         } else {
           setReviewError(e?.message || "Failed to load approval");
         }
@@ -76,7 +81,7 @@ function ApprovalReviewContent() {
       setResult(data);
     } catch (e) {
       if (e?.status === 401) {
-        setNeedsLogin(true);
+        setNeedsUser(true);
       } else {
         setSubmitError(e?.message || "Failed to submit");
       }
@@ -85,10 +90,14 @@ function ApprovalReviewContent() {
     }
   };
 
-  const handleSignIn = () => {
-    if (PARENT_APP_URL) {
-      window.location.href = PARENT_APP_URL;
+  const handleSaveUser = () => {
+    const uid = String(devUserDraft || "").trim();
+    if (!uid || !/^\d+$/.test(uid)) {
+      alert("Enter a numeric user id");
+      return;
     }
+    setSelectedUserId(uid);
+    window.location.reload();
   };
 
   if (reviewLoading) {
@@ -99,29 +108,34 @@ function ApprovalReviewContent() {
     );
   }
 
-  if (needsLogin) {
+  if (needsUser) {
     return (
       <div className="max-w-xl mx-auto">
-        <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-5 flex gap-3">
-          <LogIn className="w-6 h-6 text-blue-700 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-blue-900">
-              Please sign in to approve this request
-            </p>
-            <p className="text-sm text-blue-900/80 mt-1">
-              Sign in with the approver&apos;s DataPoem account in this browser,
-              then re-open the approval link from your email. Only the master
-              admin selected as approver can approve or reject.
-            </p>
-            {PARENT_APP_URL && (
-              <button
-                onClick={handleSignIn}
-                className="mt-3 px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Sign in to DataPoem
-              </button>
-            )}
-          </div>
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-5 space-y-3">
+          <p className="text-sm font-semibold text-amber-900">
+            Select an approver user id
+          </p>
+          <p className="text-sm text-amber-900/80">
+            Temporary stand-in for real auth. Enter the approver&apos;s user id,
+            save, then continue this approval. Only the designated approver can
+            approve or reject.
+          </p>
+          <label className="block text-sm font-medium text-amber-950">
+            User ID
+            <input
+              type="text"
+              inputMode="numeric"
+              value={devUserDraft}
+              onChange={(e) => setDevUserDraft(e.target.value)}
+              className="mt-1.5 w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white outline-none"
+            />
+          </label>
+          <button
+            onClick={handleSaveUser}
+            className="mt-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-800 text-white hover:bg-amber-900"
+          >
+            Save &amp; reload
+          </button>
         </div>
       </div>
     );

@@ -27,7 +27,7 @@ from tests.conftest import (
     USER_OTHER_ORG,
     TestSession,
 )
-from db.models import Org, UserGroup, GroupMembership, FolderGrant
+from db.models import Organization, UserGroup, GroupMembership, FolderGrant
 
 
 FILES_API = "/api/v2/explorer/files"
@@ -35,14 +35,31 @@ FILES_API = "/api/v2/explorer/files"
 
 @pytest.fixture
 def seed_org(db):
-    org = Org(
-        subscription_id="sub-001",
+    """Seed org + owned users for FK integrity."""
+    from db.models import Organization, User
+    from core.auth import ROLE_SUPER_ADMIN, ROLE_MASTER_ADMIN, ROLE_ADMIN, ROLE_USER
+    from tests.conftest import SUPER_ADMIN, MASTER_ADMIN, ORG_ADMIN, USER_RW, USER_RW_2
+
+    org = Organization(
+        id=1,
+        org_key="org-001",
         org_name="TestOrg",
         bucket_name="test-bucket",
         region="us-east-1",
-        onboarded_by=1,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    for u in (
+        User(id=1, username="SuperAdmin", email="super@test.com", role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=2, username="MasterAdmin", email="master@test.com", role=ROLE_MASTER_ADMIN, organization_id=1, active=True),
+        User(id=3, username="OrgAdmin", email="orgadmin@test.com", role=ROLE_ADMIN, organization_id=1, active=True),
+        User(id=10, username="User1", email="user1@test.com", role=ROLE_USER, organization_id=1, active=True),
+        User(id=11, username="User2", email="user2@test.com", role=ROLE_USER, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = 1
     db.commit()
     db.refresh(org)
     return org
@@ -51,7 +68,7 @@ def seed_org(db):
 @pytest.fixture
 def seed_user_grant(db, seed_org):
     """Grant USER_RW write access on Data/ prefix."""
-    group = UserGroup(name="dp-FileOpsGroup", org_id=seed_org.id, created_by=1)
+    group = UserGroup(name="FileOpsGroup", org_id=seed_org.id, created_by=1)
     db.add(group)
     db.commit()
     db.refresh(group)
@@ -74,7 +91,7 @@ def seed_user_grant(db, seed_org):
 @pytest.fixture
 def seed_readonly_grant(db, seed_org):
     """Grant USER_RW_2 read-only access on Reports/ prefix."""
-    group = UserGroup(name="dp-ReadOnlyGroup", org_id=seed_org.id, created_by=1)
+    group = UserGroup(name="ReadOnlyGroup", org_id=seed_org.id, created_by=1)
     db.add(group)
     db.commit()
     db.refresh(group)
@@ -440,7 +457,7 @@ async def test_move_to_root_no_leading_slash(client_as, db, seed_org, mock_s3):
 @pytest.mark.asyncio
 async def test_copy_denied_when_grant_is_child_of_source(client_as, db, seed_org, mock_s3):
     """User with grant on Data/sub/ cannot copy a file from Data/ (parent)."""
-    group = UserGroup(name="dp-ChildGrant", org_id=seed_org.id, created_by=1)
+    group = UserGroup(name="ChildGrant", org_id=seed_org.id, created_by=1)
     db.add(group)
     db.commit()
     db.refresh(group)
@@ -476,31 +493,10 @@ async def test_copy_denied_when_grant_is_child_of_source(client_as, db, seed_org
 
 
 @pytest.mark.asyncio
-async def test_legacy_user_can_copy(client_as, db, seed_org, mock_s3):
+@pytest.mark.skip(reason="legacy UAM/s3_explorer path removed")
+async def test_legacy_user_can_copy():
     """Legacy user (s3_explorer entry, no group memberships) can copy files."""
-    from db.models import Explorer
-
-    entry = Explorer(
-        user_id=USER_RW.id,
-        bucket_name="test-bucket",
-        folder_name="TestOrg",
-        folder_path="dp-testorg/",
-        relative_path="/",
-        is_admin=False,
-    )
-    db.add(entry)
-    db.commit()
-
-    mock_s3.put_object(Bucket="test-bucket", Key="Legacy/file.csv", Body=b"data")
-
-    async with client_as(USER_RW) as c:
-        resp = await c.post(f"{FILES_API}/copy", json={
-            "org_id": seed_org.id,
-            "file_key": "Legacy/file.csv",
-            "target_prefix": "Legacy/dest",
-            "basePath": "test-bucket",
-        })
-    assert resp.status_code == 200
+    pass
 
 
 # ============================================================

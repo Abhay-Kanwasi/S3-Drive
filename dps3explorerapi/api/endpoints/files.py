@@ -44,25 +44,22 @@ class CopyMoveRequest(BaseModel):
 # ----------------------------- Helpers ----------------------------------
 
 def _get_org_and_bucket(org_id: int, user: CurrentUser, db: Session) -> tuple:
-    """Resolve org and verify user has access (same subscription guard as browse)."""
+    """Resolve org and verify user has access (same org guard as browse)."""
     org = db.query(Organization).filter(Organization.id == org_id, Organization.is_active == True).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
-        if user.subscription_id != org.subscription_id:
+        if user.organization_id != org.id and user.subscription_id != org.org_key:
             raise HTTPException(status_code=403, detail="No access to this organization")
     return org, org.bucket_name
 
 
 def _check_strict_read(user: CurrentUser, org_id: int, prefix: str, db: Session):
     """Strict read check for file operations — the grant must directly cover
-    the file's prefix (no navigation pass-through).
-    Includes the same legacy-access fallback as check_prefix_access."""
-    from core.permissions import _user_has_any_memberships, _user_has_legacy_access
+    the file's prefix (no navigation pass-through)."""
+    from core.permissions import _user_has_any_memberships
 
     if not _user_has_any_memberships(user.id, org_id, db):
-        if _user_has_legacy_access(user.id, db):
-            return
         raise HTTPException(
             status_code=403,
             detail="No folder access granted for this organization",

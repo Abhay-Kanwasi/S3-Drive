@@ -17,49 +17,59 @@ from tests.conftest import (
 PREFIX = "/api/v2/explorer"
 
 
+def _onboard_payload(org_key="org-new", org_name="NewOrg", bucket_name="test-bucket"):
+    return {
+        "org_key": org_key,
+        "org_name": org_name,
+        "bucket_name": bucket_name,
+    }
+
+
 # ---------- Onboarding role enforcement ----------
 
 @pytest.mark.asyncio
-async def test_super_admin_can_onboard(client_as, mock_s3, seed_subscriber):
+async def test_super_admin_can_onboard(client_as, mock_s3, seed_org):
+    mock_s3.create_bucket(Bucket="onboard-bucket")
     async with client_as(SUPER_ADMIN) as c:
-        resp = await c.post(f"{PREFIX}/admin/orgs/onboard", json={
-            "subscription_id": "sub-001",
-            "bucket_name": "test-bucket",
-        })
+        resp = await c.post(
+            f"{PREFIX}/admin/orgs/onboard",
+            json=_onboard_payload(org_key="org-new", bucket_name="onboard-bucket"),
+        )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["bucket_name"] == "test-bucket"
+        assert data["bucket_name"] == "onboard-bucket"
         assert data["org_name"] is not None
+        assert data.get("org_key") == "org-new" or data.get("subscription_id") == "org-new"
 
 
 @pytest.mark.asyncio
-async def test_master_admin_can_onboard(client_as, mock_s3, seed_subscriber):
+async def test_master_admin_can_onboard(client_as, mock_s3, seed_org):
     mock_s3.create_bucket(Bucket="another-bucket")
     async with client_as(MASTER_ADMIN) as c:
-        resp = await c.post(f"{PREFIX}/admin/orgs/onboard", json={
-            "subscription_id": "sub-001",
-            "bucket_name": "another-bucket",
-        })
+        resp = await c.post(
+            f"{PREFIX}/admin/orgs/onboard",
+            json=_onboard_payload(org_key="org-master", bucket_name="another-bucket"),
+        )
         assert resp.status_code == 201
 
 
 @pytest.mark.asyncio
 async def test_org_admin_cannot_onboard(client_as, mock_s3):
     async with client_as(ORG_ADMIN) as c:
-        resp = await c.post(f"{PREFIX}/admin/orgs/onboard", json={
-            "subscription_id": "sub-001",
-            "bucket_name": "test-bucket",
-        })
+        resp = await c.post(
+            f"{PREFIX}/admin/orgs/onboard",
+            json=_onboard_payload(),
+        )
         assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_regular_user_cannot_onboard(client_as, mock_s3):
     async with client_as(USER_RW) as c:
-        resp = await c.post(f"{PREFIX}/admin/orgs/onboard", json={
-            "subscription_id": "sub-001",
-            "bucket_name": "test-bucket",
-        })
+        resp = await c.post(
+            f"{PREFIX}/admin/orgs/onboard",
+            json=_onboard_payload(),
+        )
         assert resp.status_code == 403
 
 
@@ -67,21 +77,22 @@ async def test_regular_user_cannot_onboard(client_as, mock_s3):
 
 @pytest.mark.asyncio
 async def test_duplicate_subscription_rejected(client_as, mock_s3, seed_org):
+    mock_s3.create_bucket(Bucket="new-bucket")
     async with client_as(SUPER_ADMIN) as c:
-        resp = await c.post(f"{PREFIX}/admin/orgs/onboard", json={
-            "subscription_id": "sub-001",
-            "bucket_name": "new-bucket",
-        })
+        resp = await c.post(
+            f"{PREFIX}/admin/orgs/onboard",
+            json=_onboard_payload(org_key="org-001", bucket_name="new-bucket"),
+        )
         assert resp.status_code == 409
 
 
 @pytest.mark.asyncio
-async def test_legacy_inactive_binding_rejected(client_as, mock_s3, seed_subscriber, db):
-    from db.models import Org
+async def test_legacy_inactive_binding_rejected(client_as, mock_s3, seed_org, db):
+    from db.models import Organization
 
     db.add(
-        Org(
-            subscription_id="sub-001",
+        Organization(
+            org_key="org-ghost",
             org_name="LegacyGhost",
             bucket_name="ghost-bucket",
             region="us-east-1",
@@ -90,13 +101,15 @@ async def test_legacy_inactive_binding_rejected(client_as, mock_s3, seed_subscri
         )
     )
     db.commit()
+    mock_s3.create_bucket(Bucket="new-bucket")
     async with client_as(SUPER_ADMIN) as c:
-        resp = await c.post(f"{PREFIX}/admin/orgs/onboard", json={
-            "subscription_id": "sub-001",
-            "bucket_name": "new-bucket",
-        })
+        resp = await c.post(
+            f"{PREFIX}/admin/orgs/onboard",
+            json=_onboard_payload(org_key="org-ghost", bucket_name="new-bucket"),
+        )
     assert resp.status_code == 409
-    assert "011_cleanup_inactive_s3_org" in resp.json()["detail"]
+    detail = resp.json()["detail"].lower()
+    assert "inactive" in detail and ("org_key" in detail or "bucket" in detail)
 
 
 # ---------- List orgs role enforcement ----------
@@ -109,6 +122,8 @@ async def test_super_admin_can_list_orgs(client_as, seed_org):
         data = resp.json()
         assert len(data) >= 1
         assert data[0]["bucket_name"] == "test-bucket"
+        row = data[0]
+        assert row.get("org_key") == "org-001" or row.get("subscription_id") == "org-001"
 
 
 @pytest.mark.asyncio

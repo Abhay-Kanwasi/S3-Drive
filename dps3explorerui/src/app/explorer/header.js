@@ -6,7 +6,7 @@ export default function Header({ children }) {
       <div className="flex flex-row justify-between my-5">
         {/* <p className="mx-4">logo</p> */}
         <div className="pl-10">
-          <Image src={Logo} height={50} alt="DataPoem logo" />
+          <Image src={Logo} height={50} alt="Explorer logo" />
         </div>
         <input
           className="border-0 py-1.5 pl-7 rounded-md pr-20 ring-1 ring-inset ring-black focus:ring-gray-400 placeholder:text-gray-400 focus:ring-2 focus:ring-inset min-w-0"

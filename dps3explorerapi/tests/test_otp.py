@@ -9,8 +9,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from tests.conftest import ORG_ADMIN, SUPER_ADMIN
-from db.models import Org, UserGroup, FolderGrant, AdminOtpChallenge
-from core.auth import ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN, UAMUser
+from db.models import Organization, User, UserGroup, FolderGrant, AdminOtpChallenge
+from core.auth import ROLE_ADMIN, ROLE_MASTER_ADMIN, ROLE_SUPER_ADMIN
 from core.otp import create_and_send_otp
 
 ADMIN_API = "/api/v2/explorer/admin"
@@ -19,49 +19,40 @@ GROUPS_API = "/api/v2/explorer/admin/groups"
 
 @pytest.fixture
 def seed_org(db):
-    org = Org(
-        subscription_id="sub-001",
+    org = Organization(
+        id=1,
+        org_key="org-001",
         org_name="OtpOrg",
         bucket_name="otp-bucket",
         region="us-east-1",
-        onboarded_by=SUPER_ADMIN.id,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    for u in (
+        User(id=SUPER_ADMIN.id, username=SUPER_ADMIN.user_name, email=SUPER_ADMIN.email,
+             role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=ORG_ADMIN.id, username=ORG_ADMIN.user_name, email=ORG_ADMIN.email,
+             role=ROLE_ADMIN, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = SUPER_ADMIN.id
     db.commit()
     db.refresh(org)
     return org
 
 
 @pytest.fixture
-def seed_approver_users(db):
+def seed_approver_users(db, seed_org):
     """Onboarder (super) + org admin; unrelated master admin must not appear in approvers."""
     db.merge(
-        UAMUser(
-            id=SUPER_ADMIN.id,
-            user_name=SUPER_ADMIN.user_name,
-            email=SUPER_ADMIN.email,
-            role=ROLE_SUPER_ADMIN,
-            subscription_id="sub-001",
-            active=True,
-        )
-    )
-    db.merge(
-        UAMUser(
-            id=ORG_ADMIN.id,
-            user_name=ORG_ADMIN.user_name,
-            email=ORG_ADMIN.email,
-            role=1,
-            subscription_id="sub-001",
-            active=True,
-        )
-    )
-    db.merge(
-        UAMUser(
+        User(
             id=99,
-            user_name="Other Master",
+            username="Other Master",
             email="other-master@test.com",
             role=ROLE_MASTER_ADMIN,
-            subscription_id="sub-999",
+            organization_id=None,
             active=True,
         )
     )
@@ -70,7 +61,7 @@ def seed_approver_users(db):
 
 @pytest.fixture
 def seed_group_with_grant(db, seed_org):
-    g = UserGroup(org_id=seed_org.id, name="dp-OtpTest", created_by=ORG_ADMIN.id)
+    g = UserGroup(org_id=seed_org.id, name="OtpTest", created_by=ORG_ADMIN.id)
     db.add(g)
     db.flush()
     db.add(
@@ -96,7 +87,7 @@ async def test_send_otp_requires_smtp_config(client_as):
 
 
 @pytest.mark.asyncio
-async def test_send_and_verify_otp(client_as, db):
+async def test_send_and_verify_otp(client_as, db, seed_org):
     with (
         patch("api.endpoints.otp.smtp_configured", return_value=True),
         patch("core.otp.smtp_configured", return_value=True),

@@ -3,6 +3,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import pytest
+
 from core import utils
 
 
@@ -38,16 +40,9 @@ class _DummySession:
         self.closed = True
 
 
-def test_get_all_folders_from_user_id_closes_session(monkeypatch):
-    expected = ["folder-a", "folder-b"]
-    query = _DummyQuery(all_result=expected)
-    fake_session = _DummySession(query)
-    monkeypatch.setattr(utils, "Session", lambda: fake_session)
-
-    result = utils.get_all_folders_from_user_id(123)
-
-    assert result == expected
-    assert fake_session.closed is True
+@pytest.mark.skip(reason="legacy UAM/s3_explorer path removed")
+def test_get_all_folders_from_user_id_closes_session():
+    pass
 
 
 def test_get_bucket_name_from_base_path_closes_session(monkeypatch):
@@ -55,7 +50,7 @@ def test_get_bucket_name_from_base_path_closes_session(monkeypatch):
     fake_session = _DummySession(query)
     monkeypatch.setattr(utils, "Session", lambda: fake_session)
 
-    result = utils.get_bucket_name_from_base_path("Admin/")
+    result = utils.get_bucket_name_from_base_path("test-bucket")
 
     assert result == "test-bucket"
     assert fake_session.closed is True

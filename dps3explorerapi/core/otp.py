@@ -15,11 +15,10 @@ from core.auth import (
     CurrentUser,
     ROLE_ADMIN,
     ROLE_LABELS,
-    UAMUser,
 )
 from core.config import settings
 from core.smtp_email import send_smtp_html, smtp_configured
-from db.models import AdminOtpChallenge, Organization
+from db.models import AdminOtpChallenge, Organization, User
 from models.email_templates.otp import otp_email_body
 
 logger = logging.getLogger(__name__)
@@ -30,10 +29,10 @@ def group_delete_purpose(group_id: int) -> str:
     return f"group_delete:{group_id}"
 
 
-def _approver_dict(u: UAMUser, *, is_onboarder: bool = False) -> dict:
+def _approver_dict(u: User, *, is_onboarder: bool = False) -> dict:
     return {
         "id": u.id,
-        "user_name": u.user_name or "",
+        "user_name": u.username or "",
         "email": u.email or "",
         "role_id": u.role,
         "role_label": ROLE_LABELS.get(u.role, "user"),
@@ -47,7 +46,9 @@ def list_otp_approvers(db: Session, org_id: int, actor: CurrentUser) -> List[dic
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found.")
 
-    if actor.role_id == ROLE_ADMIN and actor.subscription_id != org.subscription_id:
+    if actor.role_id == ROLE_ADMIN and (
+        actor.organization_id != org.id and actor.subscription_id != org.org_key
+    ):
         raise HTTPException(status_code=403, detail="Organization is outside your scope.")
 
     seen: set[int] = set()
@@ -55,12 +56,12 @@ def list_otp_approvers(db: Session, org_id: int, actor: CurrentUser) -> List[dic
 
     if org.onboarded_by:
         onboarder = (
-            db.query(UAMUser)
+            db.query(User)
             .filter(
-                UAMUser.id == org.onboarded_by,
-                UAMUser.active == True,
-                UAMUser.email.isnot(None),
-                UAMUser.email != "",
+                User.id == org.onboarded_by,
+                User.active == True,
+                User.email.isnot(None),
+                User.email != "",
             )
             .first()
         )
@@ -69,15 +70,15 @@ def list_otp_approvers(db: Session, org_id: int, actor: CurrentUser) -> List[dic
             result.append(_approver_dict(onboarder, is_onboarder=True))
 
     org_admins = (
-        db.query(UAMUser)
+        db.query(User)
         .filter(
-            UAMUser.active == True,
-            UAMUser.role == ROLE_ADMIN,
-            UAMUser.subscription_id == org.subscription_id,
-            UAMUser.email.isnot(None),
-            UAMUser.email != "",
+            User.active == True,
+            User.role == ROLE_ADMIN,
+            User.organization_id == org.id,
+            User.email.isnot(None),
+            User.email != "",
         )
-        .order_by(UAMUser.user_name, UAMUser.id)
+        .order_by(User.username, User.id)
         .all()
     )
     for u in org_admins:
@@ -90,14 +91,14 @@ def list_otp_approvers(db: Session, org_id: int, actor: CurrentUser) -> List[dic
 
 def resolve_otp_recipient(
     db: Session, org_id: int, recipient_user_id: int, actor: CurrentUser
-) -> UAMUser:
+) -> User:
     approvers = {a["id"]: a for a in list_otp_approvers(db, org_id, actor)}
     if recipient_user_id not in approvers:
         raise HTTPException(
             status_code=400,
             detail="Invalid approver. Choose the org onboarding admin or an org admin for this organization.",
         )
-    user = db.query(UAMUser).filter(UAMUser.id == recipient_user_id).first()
+    user = db.query(User).filter(User.id == recipient_user_id).first()
     if not user or not user.email:
         raise HTTPException(status_code=400, detail="Approver has no email address.")
     return user

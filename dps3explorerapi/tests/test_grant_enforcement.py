@@ -30,7 +30,7 @@ from tests.conftest import (
     USER_RW_2,
     TestSession,
 )
-from db.models import Org, FolderMetadata, UserGroup, GroupMembership, FolderGrant, Explorer
+from db.models import Organization, FolderMetadata, UserGroup, GroupMembership, FolderGrant
 
 API = "/api/v2/explorer/browse"
 
@@ -41,14 +41,26 @@ def seed_full(db, mock_s3):
     Seed org, S3 folder structure, folder metadata, a user group with USER_RW,
     and a FolderGrant on 'ProjectA/' with read_write.
     """
-    org = Org(
-        subscription_id="sub-001",
+    from db.models import User
+    from core.auth import ROLE_SUPER_ADMIN, ROLE_USER
+    org = Organization(
+        id=1,
+        org_key="org-001",
         org_name="TestOrg",
         bucket_name="test-bucket",
         region="us-east-1",
-        onboarded_by=1,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    for u in (
+        User(id=SUPER_ADMIN.id, username="SuperAdmin", email="super@test.com", role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=USER_RW.id, username="User1", email="user1@test.com", role=ROLE_USER, organization_id=1, active=True),
+        User(id=USER_RW_2.id, username="User2", email="user2@test.com", role=ROLE_USER, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = SUPER_ADMIN.id
     db.commit()
     db.refresh(org)
 
@@ -71,7 +83,7 @@ def seed_full(db, mock_s3):
     db.commit()
 
     # Group with USER_RW as member
-    group = UserGroup(org_id=org.id, name="dp-team-alpha", created_by=SUPER_ADMIN.id)
+    group = UserGroup(org_id=org.id, name="team-alpha", created_by=SUPER_ADMIN.id)
     db.add(group)
     db.commit()
     db.refresh(group)
@@ -149,21 +161,10 @@ class TestBrowseEnforcement:
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_ungrouped_user_with_legacy_sees_all(self, client_as, seed_full, db, mock_s3):
+    @pytest.mark.skip(reason="legacy UAM/s3_explorer path removed")
+    async def test_ungrouped_user_with_legacy_sees_all(self):
         """User with no group membership but a legacy row sees everything."""
-        org = seed_full["org"]
-        db.add(Explorer(
-            user_id=USER_RW_2.id, bucket_name="test-bucket",
-            folder_name="TestOrg", folder_path="dp-testorg/",
-            relative_path="/", is_admin=False,
-        ))
-        db.commit()
-        async with client_as(USER_RW_2) as c:
-            resp = await c.post(f"{API}/browse", json={"org_id": org.id, "prefix": ""})
-        assert resp.status_code == 200
-        folder_names = [f["name"] for f in resp.json()["folders"]]
-        assert "ProjectA" in folder_names
-        assert "Secret" in folder_names
+        pass
 
 
 # ---------- Create Folder Tests ----------
@@ -466,22 +467,10 @@ class TestLegacyFallback:
     """Verify that ungrouped users are only allowed if they have legacy s3_explorer rows."""
 
     @pytest.mark.asyncio
-    async def test_ungrouped_user_with_legacy_row_sees_all(self, client_as, seed_full, db, mock_s3):
+    @pytest.mark.skip(reason="legacy UAM/s3_explorer path removed")
+    async def test_ungrouped_user_with_legacy_row_sees_all(self):
         """Ungrouped user WITH a legacy Explorer row gets full access (backward compat)."""
-        org = seed_full["org"]
-        db.add(Explorer(
-            user_id=USER_RW_2.id, bucket_name="test-bucket",
-            folder_name="TestOrg", folder_path="dp-testorg/",
-            relative_path="/", is_admin=False,
-        ))
-        db.commit()
-
-        async with client_as(USER_RW_2) as c:
-            resp = await c.post(f"{API}/browse", json={"org_id": org.id, "prefix": ""})
-        assert resp.status_code == 200
-        folder_names = [f["name"] for f in resp.json()["folders"]]
-        assert "ProjectA" in folder_names
-        assert "Secret" in folder_names
+        pass
 
     @pytest.mark.asyncio
     async def test_ungrouped_user_without_legacy_row_denied(self, client_as, seed_full, mock_s3):

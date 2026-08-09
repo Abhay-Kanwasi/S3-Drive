@@ -10,8 +10,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from tests.conftest import ORG_ADMIN, SUPER_ADMIN
-from db.models import Org, UserGroup, FolderGrant, AdminApprovalRequest
-from core.auth import ROLE_SUPER_ADMIN, UAMUser
+from db.models import Organization, User, UserGroup, FolderGrant, AdminApprovalRequest
+from core.auth import ROLE_ADMIN, ROLE_SUPER_ADMIN
 
 ADMIN_API = "/api/v2/explorer/admin"
 GROUPS_API = "/api/v2/explorer/admin/groups"
@@ -32,49 +32,41 @@ def _parse_action_link(html: str, action: str):
 
 @pytest.fixture
 def seed_org(db):
-    org = Org(
-        subscription_id="sub-001",
+    org = Organization(
+        id=1,
+        org_key="org-001",
         org_name="ApprovalOrg",
         bucket_name="approval-bucket",
         region="us-east-1",
-        onboarded_by=SUPER_ADMIN.id,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    for u in (
+        User(id=SUPER_ADMIN.id, username=SUPER_ADMIN.user_name, email=SUPER_ADMIN.email,
+             role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=ORG_ADMIN.id, username=ORG_ADMIN.user_name, email=ORG_ADMIN.email,
+             role=ROLE_ADMIN, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = SUPER_ADMIN.id
     db.commit()
     db.refresh(org)
     return org
 
 
 @pytest.fixture
-def seed_approver_users(db):
-    db.merge(
-        UAMUser(
-            id=SUPER_ADMIN.id,
-            user_name=SUPER_ADMIN.user_name,
-            email=SUPER_ADMIN.email,
-            role=ROLE_SUPER_ADMIN,
-            subscription_id="sub-001",
-            active=True,
-        )
-    )
-    db.merge(
-        UAMUser(
-            id=ORG_ADMIN.id,
-            user_name=ORG_ADMIN.user_name,
-            email=ORG_ADMIN.email,
-            role=1,
-            subscription_id="sub-001",
-            active=True,
-        )
-    )
-    db.commit()
+def seed_approver_users(db, seed_org):
+    # Users already seeded with seed_org
+    pass
 
 
 @pytest.fixture
 def seed_group_with_grant(db, seed_org):
     g = UserGroup(
         org_id=seed_org.id,
-        name="dp-ApprovalTest",
+        name="ApprovalTest",
         created_by=ORG_ADMIN.id,
         requires_delete_approval=True,
     )
@@ -142,7 +134,7 @@ async def test_approve_link_deletes_group(
     from core.approval import create_and_send_group_delete_approval
 
     gid = seed_group_with_grant.id
-    approver = db.query(UAMUser).filter(UAMUser.id == SUPER_ADMIN.id).first()
+    approver = db.query(User).filter(User.id == SUPER_ADMIN.id).first()
     captured = {}
 
     with patch("core.approval.smtp_configured", return_value=True), patch(
@@ -195,7 +187,7 @@ async def test_reject_link_keeps_group(
     from core.approval import create_and_send_group_delete_approval
 
     gid = seed_group_with_grant.id
-    approver = db.query(UAMUser).filter(UAMUser.id == SUPER_ADMIN.id).first()
+    approver = db.query(User).filter(User.id == SUPER_ADMIN.id).first()
     captured = {}
 
     with patch("core.approval.smtp_configured", return_value=True), patch(
@@ -238,7 +230,7 @@ async def test_get_approve_prefetch_does_not_delete(
     from core.approval import create_and_send_group_delete_approval
 
     gid = seed_group_with_grant.id
-    approver = db.query(UAMUser).filter(UAMUser.id == SUPER_ADMIN.id).first()
+    approver = db.query(User).filter(User.id == SUPER_ADMIN.id).first()
     captured = {}
 
     with patch("core.approval.smtp_configured", return_value=True), patch(
@@ -285,7 +277,7 @@ async def test_approve_via_json_body_deletes_group(
     from core.approval import create_and_send_group_delete_approval
 
     gid = seed_group_with_grant.id
-    approver = db.query(UAMUser).filter(UAMUser.id == SUPER_ADMIN.id).first()
+    approver = db.query(User).filter(User.id == SUPER_ADMIN.id).first()
     captured = {}
 
     with patch("core.approval.smtp_configured", return_value=True), patch(
@@ -313,7 +305,7 @@ async def test_approve_via_json_body_deletes_group(
     payload = resp.json()
     assert payload["kind"] == "group_delete"
     assert payload["action"] == "approve"
-    assert payload["group_name"] == "dp-ApprovalTest"
+    assert payload["group_name"] == "ApprovalTest"
 
     async with client_as(ORG_ADMIN) as c:
         get_resp = await c.get(f"{GROUPS_API}/{gid}")
@@ -329,7 +321,7 @@ async def test_approve_via_json_html_in_name_is_escaped(
 
     g = UserGroup(
         org_id=seed_org.id,
-        name="dp-<script>alert(1)</script>",
+        name="<script>alert(1)</script>",
         created_by=ORG_ADMIN.id,
         requires_delete_approval=True,
     )
@@ -346,7 +338,7 @@ async def test_approve_via_json_html_in_name_is_escaped(
     )
     db.commit()
 
-    approver = db.query(UAMUser).filter(UAMUser.id == SUPER_ADMIN.id).first()
+    approver = db.query(User).filter(User.id == SUPER_ADMIN.id).first()
     captured = {}
     with patch("core.approval.smtp_configured", return_value=True), patch(
         "core.approval.send_smtp_html",
@@ -371,7 +363,7 @@ async def test_approve_via_json_html_in_name_is_escaped(
     payload = resp.json()
     assert "<script>" not in payload["message_html"]
     assert "&lt;script&gt;" in payload["message_html"]
-    assert payload["group_name"] == "dp-<script>alert(1)</script>"
+    assert payload["group_name"] == "<script>alert(1)</script>"
 
 
 @pytest.mark.asyncio
@@ -393,7 +385,7 @@ async def test_post_respond_requires_auth(
         app.include_router(api_router, prefix=app_settings.API_V1_STR)
 
     gid = seed_group_with_grant.id
-    approver = db.query(UAMUser).filter(UAMUser.id == SUPER_ADMIN.id).first()
+    approver = db.query(User).filter(User.id == SUPER_ADMIN.id).first()
     captured = {}
     with patch("core.approval.smtp_configured", return_value=True), patch(
         "core.approval.send_smtp_html",

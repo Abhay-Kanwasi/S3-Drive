@@ -18,7 +18,7 @@ import bcrypt
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core.auth import CurrentUser, UAMUser
+from core.auth import CurrentUser
 from core.config import settings
 from core.otp import group_delete_purpose, resolve_otp_recipient
 from core.smtp_email import send_smtp_html, smtp_configured
@@ -27,6 +27,7 @@ from db.models import (
     FolderGrant,
     GroupMembership,
     Organization,
+    User,
     UserGroup,
 )
 from models.email_templates.approval import approval_email_body
@@ -135,7 +136,7 @@ def create_and_send_group_delete_approval(
     db: Session,
     *,
     group_id: int,
-    approver: UAMUser,
+    approver: User,
     requester: CurrentUser,
     request_base_url: Optional[str] = None,
 ) -> dict:
@@ -188,7 +189,7 @@ def create_and_send_group_delete_approval(
     base = _approval_base_url(request_base_url)
     validity = _validity_label()
 
-    greeting = f" {_esc(approver.user_name)}" if approver.user_name else ""
+    greeting = f" {_esc(approver.username)}" if approver.username else ""
     requester_label = requester.user_name or requester.email or "An admin"
     html = approval_email_body.format(
         greeting=greeting,
@@ -305,10 +306,10 @@ def build_approval_confirmation_page(
 
     from core.unonboard import is_unonboard_approval_purpose, parse_unonboard_request_id, unonboard_summary
 
-    requester = db.query(UAMUser).filter(UAMUser.id == row.requester_user_id).first()
+    requester = db.query(User).filter(User.id == row.requester_user_id).first()
     requester_label = (
-        f"{requester.user_name} ({requester.email})" if requester and requester.email
-        else (requester.user_name if requester else "Unknown")
+        f"{requester.username} ({requester.email})" if requester and requester.email
+        else (requester.username if requester else "Unknown")
     )
     requester_label_esc = _esc(requester_label)
 
@@ -427,10 +428,10 @@ def build_approval_review_payload(
 
     from core.unonboard import is_unonboard_approval_purpose, parse_unonboard_request_id, unonboard_summary
 
-    requester = db.query(UAMUser).filter(UAMUser.id == row.requester_user_id).first()
+    requester = db.query(User).filter(User.id == row.requester_user_id).first()
     requester_label = (
-        f"{requester.user_name} ({requester.email})" if requester and requester.email
-        else (requester.user_name if requester else "Unknown")
+        f"{requester.username} ({requester.email})" if requester and requester.email
+        else (requester.username if requester else "Unknown")
     )
 
     base_payload = {

@@ -14,27 +14,41 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from db.models import S3UserDeactivation, GroupMembership, UserGroup, FolderGrant, Org
+from db.models import S3UserDeactivation, GroupMembership, UserGroup, FolderGrant, Organization
 
 
 @pytest.fixture
 def seed_deactivation_data(db):
     """Set up an org, a group, an expired user and a recent user with memberships."""
-    org = Org(
+    from db.models import User
+    from core.auth import ROLE_USER, ROLE_SUPER_ADMIN
+
+    org = Organization(
+        id=1,
         org_name="Cron Test Org",
         bucket_name="cron-test-bucket",
-        subscription_id=999,
-        onboarded_by=1,
+        org_key="org-999",
+        region="us-east-1",
+        onboarded_by=None,
     )
     db.add(org)
     db.flush()
 
-    group = UserGroup(name="dp-cron-group", org_id=org.id, created_by=1)
-    db.add(group)
-    db.flush()
-
     expired_user_id = 9001
     recent_user_id = 9002
+    for u in (
+        User(id=1, username="SuperAdmin", email="super@test.com", role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=expired_user_id, username="Expired", email="expired@test.com", role=ROLE_USER, organization_id=1, active=True),
+        User(id=recent_user_id, username="Recent", email="recent@test.com", role=ROLE_USER, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = 1
+    db.flush()
+
+    group = UserGroup(name="cron-group", org_id=org.id, created_by=1)
+    db.add(group)
+    db.flush()
 
     db.add(S3UserDeactivation(
         user_id=expired_user_id,
@@ -172,10 +186,11 @@ def test_grace_days_validation():
     """--grace-days < 1 should be rejected."""
     import subprocess
     import os
+    import sys
 
     script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "cleanup_deactivated_memberships.py")
     result = subprocess.run(
-        ["python", script_path, "--grace-days", "0"],
+        [sys.executable, script_path, "--grace-days", "0"],
         capture_output=True, text=True,
     )
     assert result.returncode != 0

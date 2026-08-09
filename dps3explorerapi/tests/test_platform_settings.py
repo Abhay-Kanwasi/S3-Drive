@@ -30,7 +30,7 @@ from tests.conftest import (
     USER_RW,
     TestSession,
 )
-from db.models import Org, UserGroup, GroupMembership, FolderGrant, PlatformSettings
+from db.models import Organization, UserGroup, GroupMembership, FolderGrant, PlatformSettings
 
 
 ADMIN_API = "/api/v2/explorer/admin"
@@ -39,15 +39,31 @@ SERVICES_API = "/api/v2/explorer/services"
 
 @pytest.fixture
 def seed_org(db):
-    """Seed org for upload tests."""
-    org = Org(
-        subscription_id="sub-001",
+    """Seed org + owned users for FK integrity."""
+    from db.models import Organization, User
+    from core.auth import ROLE_SUPER_ADMIN, ROLE_MASTER_ADMIN, ROLE_ADMIN, ROLE_USER
+    from tests.conftest import SUPER_ADMIN, MASTER_ADMIN, ORG_ADMIN, USER_RW, USER_RW_2
+
+    org = Organization(
+        id=1,
+        org_key="org-001",
         org_name="TestOrg",
         bucket_name="test-bucket",
         region="us-east-1",
-        onboarded_by=1,
+        onboarded_by=None,
     )
     db.add(org)
+    db.flush()
+    for u in (
+        User(id=1, username="SuperAdmin", email="super@test.com", role=ROLE_SUPER_ADMIN, organization_id=1, active=True),
+        User(id=2, username="MasterAdmin", email="master@test.com", role=ROLE_MASTER_ADMIN, organization_id=1, active=True),
+        User(id=3, username="OrgAdmin", email="orgadmin@test.com", role=ROLE_ADMIN, organization_id=1, active=True),
+        User(id=10, username="User1", email="user1@test.com", role=ROLE_USER, organization_id=1, active=True),
+        User(id=11, username="User2", email="user2@test.com", role=ROLE_USER, organization_id=1, active=True),
+    ):
+        db.merge(u)
+    db.flush()
+    org.onboarded_by = 1
     db.commit()
     db.refresh(org)
     return org
@@ -56,7 +72,7 @@ def seed_org(db):
 @pytest.fixture
 def seed_user_grant(db, seed_org):
     """Give USER_RW write access on Data/ prefix."""
-    group = UserGroup(name="dp-TestGroup", org_id=seed_org.id, created_by=1)
+    group = UserGroup(name="TestGroup", org_id=seed_org.id, created_by=1)
     db.add(group)
     db.commit()
     db.refresh(group)

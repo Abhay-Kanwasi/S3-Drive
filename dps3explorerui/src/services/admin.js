@@ -1,13 +1,7 @@
+import { getAuthHeaders } from "@/services/auth";
+
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const adminHostname = `${API_HOSTNAME}/explorer/admin`;
-
-function getAuthHeaders() {
-  const token = localStorage.getItem("authToken");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 function apiErrorMessage(body, fallback) {
   const detail = body?.detail;
@@ -31,21 +25,45 @@ async function throwIfNotOk(response, fallback) {
   }
 }
 
+/** Normalize org rows: subscription_id is a compat alias for org_key. */
+function normalizeOrg(org) {
+  if (!org) return org;
+  const org_key = org.org_key || org.subscription_id || "";
+  return {
+    ...org,
+    org_key,
+    subscription_id: org.subscription_id || org_key,
+    org_name: org.org_name || org.name || "",
+  };
+}
+
 export const getAdminMe = async () => {
   const response = await fetch(`${adminHostname}/me`, {
     headers: getAuthHeaders(),
   });
   await throwIfNotOk(response, "Failed to fetch admin profile");
-  return response.json();
+  const data = await response.json();
+  if (data?.org) data.org = normalizeOrg(data.org);
+  return data;
 };
 
-export const getOnboardedOrgs = async () => {
-  const response = await fetch(`${adminHostname}/orgs`, {
+/** Owned organizations (onboarded). Falls back to legacy /admin/orgs path. */
+export const getOrganizations = async () => {
+  let response = await fetch(`${adminHostname}/organizations`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error("Failed to fetch orgs");
-  return response.json();
+  if (response.status === 404) {
+    response = await fetch(`${adminHostname}/orgs`, {
+      headers: getAuthHeaders(),
+    });
+  }
+  if (!response.ok) throw new Error("Failed to fetch organizations");
+  const data = await response.json();
+  return Array.isArray(data) ? data.map(normalizeOrg) : data;
 };
+
+/** @deprecated alias — use getOrganizations */
+export const getOnboardedOrgs = getOrganizations;
 
 export const getAvailableBuckets = async () => {
   const response = await fetch(`${adminHostname}/available-buckets`, {
@@ -55,26 +73,50 @@ export const getAvailableBuckets = async () => {
   return response.json();
 };
 
-export const getAvailableSubscribers = async () => {
-  const response = await fetch(`${adminHostname}/subscribers`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) throw new Error("Failed to fetch subscribers");
-  return response.json();
-};
-
-export const onboardOrg = async ({ subscription_id, bucket_name }) => {
-  const response = await fetch(`${adminHostname}/orgs/onboard`, {
+/**
+ * Create / onboard an organization by binding an S3 bucket.
+ * Accepts org_key, org_name, bucket_name (subscription_id accepted as alias for org_key).
+ */
+export const createOrganization = async ({
+  org_key,
+  org_name,
+  bucket_name,
+  subscription_id,
+}) => {
+  const key = org_key || subscription_id;
+  const body = {
+    org_key: key,
+    org_name,
+    bucket_name,
+    // compat for APIs that still expect subscription_id
+    subscription_id: key,
+  };
+  let response = await fetch(`${adminHostname}/organizations`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ subscription_id, bucket_name }),
+    body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.detail || "Onboarding failed");
+  if (response.status === 404) {
+    response = await fetch(`${adminHostname}/orgs/onboard`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        org_key: key,
+        org_name,
+        bucket_name,
+        subscription_id: key,
+      }),
+    });
   }
-  return response.json();
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(apiErrorMessage(err, "Onboarding failed"));
+  }
+  return normalizeOrg(await response.json());
 };
+
+/** @deprecated alias — use createOrganization */
+export const onboardOrg = createOrganization;
 
 // ─── User Management ─────────────────────────────────────────────────────
 
@@ -100,6 +142,54 @@ export const getAdminUserDetail = async (userId) => {
   return response.json();
 };
 
+const ROLE_TO_ID = {
+  admin: 1,
+  user: 2,
+  master_admin: 3,
+  super_admin: 4,
+};
+
+function normalizeRolePayload(role) {
+  if (role == null) return role;
+  if (typeof role === "number") return role;
+  if (/^\d+$/.test(String(role))) return Number(role);
+  return ROLE_TO_ID[role] ?? role;
+}
+
+export const createAdminUser = async ({
+  username,
+  email,
+  role,
+  organization_id,
+  active = true,
+}) => {
+  const response = await fetch(`${adminHostname}/users`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      username,
+      email,
+      role: normalizeRolePayload(role),
+      organization_id: organization_id ?? null,
+      active,
+    }),
+  });
+  await throwIfNotOk(response, "Failed to create user");
+  return response.json();
+};
+
+export const updateAdminUser = async (userId, patch) => {
+  const body = { ...patch };
+  if (body.role != null) body.role = normalizeRolePayload(body.role);
+  const response = await fetch(`${adminHostname}/users/${userId}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  await throwIfNotOk(response, "Failed to update user");
+  return response.json();
+};
+
 export const deactivateAdminUser = async (userId) => {
   const response = await fetch(`${adminHostname}/users/${userId}/deactivate`, {
     method: "POST",
@@ -121,6 +211,24 @@ export const reactivateAdminUser = async (userId) => {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to reactivate user");
   }
+  return response.json();
+};
+
+export const deactivateAccount = async (userId) => {
+  const response = await fetch(`${adminHostname}/users/${userId}/account/deactivate`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  await throwIfNotOk(response, "Failed to deactivate account");
+  return response.json();
+};
+
+export const reactivateAccount = async (userId) => {
+  const response = await fetch(`${adminHostname}/users/${userId}/account/reactivate`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  await throwIfNotOk(response, "Failed to reactivate account");
   return response.json();
 };
 

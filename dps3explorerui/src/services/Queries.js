@@ -1,15 +1,40 @@
 import {
-  getUAMFolderContent,
   getFolderContent,
   delete_by_filename,
   metadata_endpoint,
   getListofFolder,
 } from "@/services/server";
-import { browseFolders, listTrash } from "@/services/browse";
+import { browseFolders, listTrash, listAccessibleOrgs } from "@/services/browse";
+import { getOrganizations } from "@/services/admin";
 
+function mapOrgToBucketItem(org) {
+  return {
+    folder_name: org.org_name || org.name || "Organization",
+    folder_path: "",
+    bucket_name: org.bucket_name,
+    org_id: org.id,
+    org_name: org.org_name || org.name,
+  };
+}
+
+/** Sidebar org list via GET /browse/orgs (grant + admin scope). */
 export const loadBuckets = async () => {
-  const data = await getUAMFolderContent();
-  return data;
+  try {
+    const data = await listAccessibleOrgs();
+    if (Array.isArray(data)) {
+      return data.map((item) =>
+        item.folder_name != null ? item : mapOrgToBucketItem(item),
+      );
+    }
+  } catch {
+    // Fall back to admin org list for global admins if browse fails
+  }
+  try {
+    const orgs = await getOrganizations();
+    return (orgs || []).map(mapOrgToBucketItem);
+  } catch {
+    return [];
+  }
 };
 
 export const loadFolderitems = async (orgId) => {

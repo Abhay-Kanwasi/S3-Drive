@@ -10,3 +10,12 @@ def get_bucket_name_from_base_path(base_path: str):
         return org.bucket_name if org else None
     finally:
         db.close()
+
+
+def get_all_folders_from_user_id(user_id: int):
+    """
+    Legacy s3_explorer lookup — removed with owned schema.
+
+    Callers (e.g. viewer) fall back to Organization.bucket_name resolution.
+    """
+    return []

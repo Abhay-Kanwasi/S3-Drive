@@ -1,10 +1,10 @@
 """
 Admin endpoints for organization onboarding.
 
-- GET  /admin/orgs              — list onboarded orgs
-- GET  /admin/available-buckets — list S3 buckets not yet onboarded
-- GET  /admin/subscribers       — list UAM subscribers not yet onboarded
-- POST /admin/orgs/onboard      — onboard a new org (map subscriber -> bucket)
+- GET  /admin/me                    — current admin identity
+- GET  /admin/organizations         — list onboarded orgs (alias: /admin/orgs)
+- POST /admin/organizations         — create/onboard org (alias: /admin/orgs/onboard)
+- GET  /admin/available-buckets     — list S3 buckets not yet onboarded
 """
 
 import re
@@ -12,13 +12,13 @@ from typing import List, Optional
 
 import boto3
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.audit import audit_log
 from core.auth import (
-    CurrentUser, require_role, UAMSubscriber,
+    CurrentUser, require_role,
     GLOBAL_ADMIN_ROLE_IDS
 )
 from db.postgresdb import get_db
@@ -34,9 +34,10 @@ ALL_ADMIN_ROLES = ["admin", "master_admin", "super_admin"]
 
 class OrgOut(BaseModel):
     id: int
-    subscription_id: str
+    org_key: str
+    subscription_id: str  # compat alias of org_key
     org_name: str
-    bucket_name: str
+    bucket_name: Optional[str] = None
     region: str
     max_upload_size_bytes: int
     is_active: bool
@@ -52,8 +53,9 @@ class BucketOut(BaseModel):
 
 
 class OnboardRequest(BaseModel):
-    subscription_id: str
-    bucket_name: str
+    org_key: str = Field(..., min_length=1)
+    org_name: str = Field(..., min_length=1)
+    bucket_name: str = Field(..., min_length=1)
 
 
 class OnboardResponse(BaseModel):
@@ -61,20 +63,35 @@ class OnboardResponse(BaseModel):
     org_name: str
     bucket_name: str
     region: str
-    subscription_id: str
+    org_key: str
+    subscription_id: str  # compat alias of org_key
+
+
+def _org_out(org: Organization) -> OrgOut:
+    return OrgOut(
+        id=org.id,
+        org_key=org.org_key,
+        subscription_id=org.org_key,
+        org_name=org.org_name,
+        bucket_name=org.bucket_name,
+        region=org.region,
+        max_upload_size_bytes=org.max_upload_size_bytes,
+        is_active=org.is_active,
+        created_at=org.created_at.isoformat() if org.created_at else None,
+    )
 
 
 # ----------------------------- Helpers ----------------------------------
 
 def _ensure_org_binding_available(
-    db: Session, *, subscription_id: str, bucket_name: str
+    db: Session, *, org_key: str, bucket_name: str
 ) -> None:
-    """Reject if subscriber or bucket is already bound (active or legacy inactive row)."""
+    """Reject if org_key or bucket is already bound (active or legacy inactive row)."""
     rows = (
         db.query(Organization)
         .filter(
             or_(
-                Organization.subscription_id == subscription_id,
+                Organization.org_key == org_key,
                 Organization.bucket_name == bucket_name,
             )
         )
@@ -82,7 +99,7 @@ def _ensure_org_binding_available(
     )
     for row in rows:
         if row.is_active:
-            if row.subscription_id == subscription_id:
+            if row.org_key == org_key:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="This organization is already onboarded",
@@ -95,8 +112,8 @@ def _ensure_org_binding_available(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                "A legacy inactive org binding still exists for this subscriber or bucket. "
-                "Run migration 011_cleanup_inactive_s3_org.sql once in this environment, then retry."
+                "A legacy inactive org binding still exists for this org_key or bucket. "
+                "Clean up the inactive organizations row, then retry."
             ),
         )
 
@@ -115,22 +132,49 @@ async def admin_me(
         "email": user.email,
         "role_id": user.role_id,
         "role_label": user.role_label,
+        "organization_id": user.organization_id,
+        "org_key": user.org_key,
         "subscription_id": user.subscription_id,
         "is_global_admin": user.role_id in GLOBAL_ADMIN_ROLE_IDS,
         "org": None,
     }
-    if user.role_id not in GLOBAL_ADMIN_ROLE_IDS and user.subscription_id:
+    if user.role_id not in GLOBAL_ADMIN_ROLE_IDS and user.organization_id:
         org = db.query(Organization).filter(
-            Organization.subscription_id == user.subscription_id,
+            Organization.id == user.organization_id,
             Organization.is_active == True,
         ).first()
         if org:
             result["org"] = {
                 "id": org.id,
                 "org_name": org.org_name,
-                "subscription_id": org.subscription_id,
+                "org_key": org.org_key,
+                "subscription_id": org.org_key,
             }
     return result
+
+
+async def _list_onboarded_orgs(
+    user: CurrentUser,
+    db: Session,
+) -> List[OrgOut]:
+    """Return onboarded organizations. Global admins see all; org admins see their own."""
+    q = db.query(Organization).filter(Organization.is_active == True)
+    if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
+        if user.organization_id:
+            q = q.filter(Organization.id == user.organization_id)
+        elif user.org_key:
+            q = q.filter(Organization.org_key == user.org_key)
+        else:
+            return []
+    return [_org_out(org) for org in q.all()]
+
+
+@router.get("/organizations", response_model=List[OrgOut])
+async def list_organizations(
+    user: CurrentUser = Depends(require_role(ALL_ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+):
+    return await _list_onboarded_orgs(user, db)
 
 
 @router.get("/orgs", response_model=List[OrgOut])
@@ -138,24 +182,8 @@ async def list_onboarded_orgs(
     user: CurrentUser = Depends(require_role(ALL_ADMIN_ROLES)),
     db: Session = Depends(get_db),
 ):
-    """Return onboarded organizations. Global admins see all; org admins see their own."""
-    q = db.query(Organization).filter(Organization.is_active == True)
-    if user.role_id not in GLOBAL_ADMIN_ROLE_IDS:
-        q = q.filter(Organization.subscription_id == user.subscription_id)
-    orgs = q.all()
-    result = []
-    for org in orgs:
-        result.append(OrgOut(
-            id=org.id,
-            subscription_id=org.subscription_id,
-            org_name=org.org_name,
-            bucket_name=org.bucket_name,
-            region=org.region,
-            max_upload_size_bytes=org.max_upload_size_bytes,
-            is_active=org.is_active,
-            created_at=org.created_at.isoformat() if org.created_at else None,
-        ))
-    return result
+    """Alias of GET /admin/organizations."""
+    return await _list_onboarded_orgs(user, db)
 
 
 @router.get("/available-buckets", response_model=List[BucketOut])
@@ -181,6 +209,7 @@ async def list_available_buckets(
     already_onboarded = {
         row.bucket_name
         for row in db.query(Organization.bucket_name).filter(Organization.is_active == True).all()
+        if row.bucket_name
     }
 
     available = []
@@ -193,60 +222,49 @@ async def list_available_buckets(
     return available
 
 
-@router.post("/orgs/onboard", response_model=OnboardResponse, status_code=status.HTTP_201_CREATED)
-async def onboard_org(
+async def _create_onboard_org(
     payload: OnboardRequest,
     request: Request,
-    user: CurrentUser = Depends(require_role(ONBOARD_ROLES)),
-    db: Session = Depends(get_db),
-):
+    user: CurrentUser,
+    db: Session,
+) -> OnboardResponse:
     """
-    Onboard an organization by linking a UAM subscriber to an S3 bucket.
+    Create/onboard an organization by binding org_key + name to an S3 bucket.
 
-    - Validates the subscriber exists in UAM
+    - Validates no duplicate org_key or bucket_name
     - Validates the bucket exists in AWS (head_bucket)
     - Resolves region from AWS (not client-supplied)
-    - Validates no duplicate subscription_id or bucket_name
-    - Creates the s3_org row
     """
+    org_key = payload.org_key.strip()
+    org_name = payload.org_name.strip()
+    bucket_name = payload.bucket_name.strip()
+    if not org_key or not org_name or not bucket_name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="org_key, org_name, and bucket_name are required",
+        )
+
     _ensure_org_binding_available(
         db,
-        subscription_id=payload.subscription_id,
-        bucket_name=payload.bucket_name,
+        org_key=org_key,
+        bucket_name=bucket_name,
     )
-
-    subscriber = (
-        db.query(UAMSubscriber)
-        .filter(UAMSubscriber.subscription_id == payload.subscription_id)
-        .first()
-    )
-    if not subscriber:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subscriber not found in UAM",
-        )
 
     s3 = boto3.client("s3")
     try:
-        s3.head_bucket(Bucket=payload.bucket_name)
-    except s3.exceptions.ClientError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Bucket does not exist or is not accessible",
-        )
+        s3.head_bucket(Bucket=bucket_name)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Bucket does not exist or is not accessible",
         )
 
-    region = _get_bucket_region(s3, payload.bucket_name)
-    org_name = subscriber.organization or subscriber.name or payload.subscription_id
+    region = _get_bucket_region(s3, bucket_name)
 
     new_org = Organization(
-        subscription_id=payload.subscription_id,
+        org_key=org_key,
         org_name=org_name,
-        bucket_name=payload.bucket_name,
+        bucket_name=bucket_name,
         region=region,
         onboarded_by=user.id,
     )
@@ -256,8 +274,8 @@ async def onboard_org(
 
     audit_log(
         user_id=user.id, event_type="ORG_ONBOARDED",
-        target_key=payload.bucket_name, org_id=new_org.id, org_name=org_name,
-        details={"org_name": org_name, "subscription_id": payload.subscription_id},
+        target_key=bucket_name, org_id=new_org.id, org_name=org_name,
+        details={"org_name": org_name, "org_key": org_key, "subscription_id": org_key},
         request=request,
     )
 
@@ -268,36 +286,30 @@ async def onboard_org(
         org_name=new_org.org_name,
         bucket_name=new_org.bucket_name,
         region=new_org.region,
-        subscription_id=new_org.subscription_id,
+        org_key=new_org.org_key,
+        subscription_id=new_org.org_key,
     )
 
 
-@router.get("/subscribers", response_model=list)
-async def list_uam_subscribers(
+@router.post("/organizations", response_model=OnboardResponse, status_code=status.HTTP_201_CREATED)
+async def create_organization(
+    payload: OnboardRequest,
+    request: Request,
     user: CurrentUser = Depends(require_role(ONBOARD_ROLES)),
     db: Session = Depends(get_db),
 ):
-    """
-    List UAM subscribers that are NOT yet onboarded.
-    Used by the frontend onboarding wizard to pick an org.
-    """
-    already_onboarded = {
-        row.subscription_id
-        for row in db.query(Organization.subscription_id).filter(Organization.is_active == True).all()
-    }
+    return await _create_onboard_org(payload, request, user, db)
 
-    subscribers = db.query(UAMSubscriber).filter(UAMSubscriber.active == True).all()
 
-    result = []
-    for sub in subscribers:
-        if sub.subscription_id not in already_onboarded:
-            result.append({
-                "subscription_id": sub.subscription_id,
-                "name": sub.name,
-                "organization_name": sub.organization,
-            })
-
-    return result
+@router.post("/orgs/onboard", response_model=OnboardResponse, status_code=status.HTTP_201_CREATED)
+async def onboard_org(
+    payload: OnboardRequest,
+    request: Request,
+    user: CurrentUser = Depends(require_role(ONBOARD_ROLES)),
+    db: Session = Depends(get_db),
+):
+    """Alias of POST /admin/organizations."""
+    return await _create_onboard_org(payload, request, user, db)
 
 
 # ----------------------------- Helpers ----------------------------------

@@ -13,16 +13,20 @@ import {
   Download,
   X,
   Shield,
+  Plus,
+  Pencil,
 } from "lucide-react";
 import { useAdminMe } from "../AdminContext";
 import {
   getAdminUsers,
   getAdminUserDetail,
   getAdminUserStats,
-  getOnboardedOrgs,
+  getOrganizations,
   exportUsersCSV,
   deactivateAdminUser,
   reactivateAdminUser,
+  createAdminUser,
+  updateAdminUser,
 } from "@/services/admin";
 
 const ROLE_BADGES = {
@@ -32,15 +36,30 @@ const ROLE_BADGES = {
   user: { label: "END USER", cls: "bg-gray-100 text-gray-600 border border-gray-200" },
 };
 
+const ROLE_OPTIONS = [
+  { value: "user", label: "End User" },
+  { value: "admin", label: "Org Admin" },
+  { value: "master_admin", label: "Master Admin" },
+  { value: "super_admin", label: "Super Admin" },
+];
+
 const PAGE_SIZE = 50;
 
 function isGlobalRole(roleLabel) {
   return roleLabel === "master_admin" || roleLabel === "super_admin";
 }
 
+/** Account-level active flag (compat: account_active or legacy uam_active). */
+function isAccountActive(u) {
+  if (!u) return true;
+  if (u.account_active != null) return u.account_active !== false;
+  if (u.uam_active != null) return u.uam_active !== false;
+  return true;
+}
+
 /* ───────── Detail Panel ───────── */
 
-function UserDetailPanel({ userId, onClose, onDeactivated }) {
+function UserDetailPanel({ userId, onClose, onDeactivated, onEdit }) {
   const { me } = useAdminMe();
   const queryClient = useQueryClient();
   const [showDeactivate, setShowDeactivate] = useState(false);
@@ -82,9 +101,10 @@ function UserDetailPanel({ userId, onClose, onDeactivated }) {
   const b = detail ? ROLE_BADGES[detail.role_label] || ROLE_BADGES.user : null;
   const isMaster = detail && isGlobalRole(detail.role_label);
   const isOrg = detail?.role_label === "admin";
+  const accountOk = isAccountActive(detail);
   const canDeactivate = Boolean(
     detail &&
-      detail.uam_active !== false &&
+      accountOk &&
       !detail.s3_deactivated &&
       detail.id !== me?.id &&
       !(detail.role_label === "super_admin" && me?.role_label !== "super_admin") &&
@@ -96,7 +116,7 @@ function UserDetailPanel({ userId, onClose, onDeactivated }) {
 
   const canReactivate = Boolean(
     detail &&
-      detail.uam_active !== false &&
+      accountOk &&
       detail.s3_deactivated &&
       me?.is_global_admin &&
       !(detail.role_label === "super_admin" && me?.role_label !== "super_admin"),
@@ -161,10 +181,10 @@ function UserDetailPanel({ userId, onClose, onDeactivated }) {
                     <span className="w-2 h-2 rounded-full bg-green-500" />
                     Active
                   </span>
-                ) : detail.uam_active === false ? (
+                ) : !accountOk ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                     <span className="w-2 h-2 rounded-full bg-gray-300" />
-                    Inactive (UAM)
+                    Inactive (account)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-amber-700">
@@ -242,48 +262,60 @@ function UserDetailPanel({ userId, onClose, onDeactivated }) {
             </div>
 
             {/* Footer actions */}
-            <div className="px-6 py-4 border-t border-border flex items-center gap-3">
-              <button
-                disabled
-                title="Audit log coming soon"
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-border rounded-lg text-sm font-medium text-muted-foreground bg-white cursor-not-allowed opacity-60"
-              >
-                <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />
-                View Audit Log
-              </button>
-              {detail.uam_active !== false && !detail.s3_deactivated ? (
+            <div className="px-6 py-4 border-t border-border space-y-2">
+              {me?.is_global_admin && (
                 <button
-                  disabled={!canDeactivate}
-                  title={
-                    detail.id === me?.id
-                      ? "You cannot deactivate your own account"
-                      : !canDeactivate
-                        ? "You cannot deactivate this user"
-                        : "Deactivate user"
-                  }
-                  onClick={() => setShowDeactivate(true)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 bg-white hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                  type="button"
+                  onClick={() => onEdit?.(detail)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-border rounded-lg text-sm font-medium text-foreground bg-white hover:bg-accent transition-colors"
                 >
-                  Deactivate
-                </button>
-              ) : (
-                <button
-                  disabled={!canReactivate}
-                  title={
-                    detail.uam_active === false
-                      ? "Reactivate this account in UAM"
-                      : !me?.is_global_admin
-                        ? "Only master or super admins can reactivate S3 access"
-                        : !canReactivate
-                          ? "You cannot reactivate this user"
-                          : "Restore S3 Explorer access (30-day grace)"
-                  }
-                  onClick={() => setShowReactivate(true)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-green-200 rounded-lg text-sm font-medium text-green-700 bg-white hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                >
-                  Reactivate
+                  <Pencil className="w-3.5 h-3.5" strokeWidth={1.5} />
+                  Edit Role
                 </button>
               )}
+              <div className="flex items-center gap-3">
+                <button
+                  disabled
+                  title="Audit log coming soon"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-border rounded-lg text-sm font-medium text-muted-foreground bg-white cursor-not-allowed opacity-60"
+                >
+                  <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />
+                  View Audit Log
+                </button>
+                {accountOk && !detail.s3_deactivated ? (
+                  <button
+                    disabled={!canDeactivate}
+                    title={
+                      detail.id === me?.id
+                        ? "You cannot deactivate your own account"
+                        : !canDeactivate
+                          ? "You cannot deactivate this user"
+                          : "Deactivate S3 Explorer access"
+                    }
+                    onClick={() => setShowDeactivate(true)}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 bg-white hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                  >
+                    Deactivate
+                  </button>
+                ) : (
+                  <button
+                    disabled={!canReactivate}
+                    title={
+                      !accountOk
+                        ? "Account is inactive — reactivate the account first"
+                        : !me?.is_global_admin
+                          ? "Only master or super admins can reactivate S3 access"
+                          : !canReactivate
+                            ? "You cannot reactivate this user"
+                            : "Restore S3 Explorer access (30-day grace)"
+                    }
+                    onClick={() => setShowReactivate(true)}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-green-200 rounded-lg text-sm font-medium text-green-700 bg-white hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                  >
+                    Reactivate
+                  </button>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -329,7 +361,7 @@ function ReactivateConfirm({ userName, loading, error, onConfirm, onCancel }) {
           Reactivate {userName}?
         </h3>
         <p className="text-sm text-muted-foreground mb-4">
-          This restores S3 Explorer access only. The UAM account must still be
+          This restores S3 Explorer access only. The account must still be
           active. Group memberships are kept if the nightly cleanup has not run.
           Allowed within 30 days of S3 deactivation (from the deactivation date).
         </p>
@@ -367,11 +399,11 @@ function DeactivateConfirm({ userName, loading, error, onConfirm, onCancel }) {
           Deactivate {userName}?
         </h3>
         <p className="text-sm text-muted-foreground mb-2">
-          This deactivates S3 Explorer access only (not the UAM account):
+          This deactivates S3 Explorer access only (not the account):
         </p>
         <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1 mb-4">
           <li>Block S3 Explorer immediately on the next API call</li>
-          <li>UAM login and other products are unchanged</li>
+          <li>Account remains active for other purposes</li>
           <li>Group memberships removed after 30 days (nightly job)</li>
         </ul>
         {error && (
@@ -412,6 +444,232 @@ function DetailField({ label, children }) {
 
 /* ───────── Main Page ───────── */
 
+function CreateUserModal({ orgs, onClose }) {
+  const queryClient = useQueryClient();
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("user");
+  const [organizationId, setOrganizationId] = useState("");
+  const [error, setError] = useState("");
+
+  const needsOrg = role === "user" || role === "admin";
+
+  const mutation = useMutation(createAdminUser, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(["admin-users"]);
+      queryClient.invalidateQueries(["admin-user-stats"]);
+      onClose();
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  const handleSubmit = () => {
+    setError("");
+    if (!username.trim() || !email.trim()) {
+      setError("Username and email are required");
+      return;
+    }
+    if (needsOrg && !organizationId) {
+      setError("Organization is required for this role");
+      return;
+    }
+    mutation.mutate({
+      username: username.trim(),
+      email: email.trim(),
+      role,
+      organization_id: organizationId ? Number(organizationId) : null,
+      active: true,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-foreground">Create User</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <label className="block text-sm">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Username</span>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm outline-none"
+            autoFocus
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm outline-none"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Role</span>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm bg-white"
+          >
+            {ROLE_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </label>
+        {needsOrg && (
+          <label className="block text-sm">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Organization</span>
+            <select
+              value={organizationId}
+              onChange={(e) => setOrganizationId(e.target.value)}
+              className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm bg-white"
+            >
+              <option value="">Select organization…</option>
+              {(orgs || []).map((o) => (
+                <option key={o.id} value={o.id}>{o.org_name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={mutation.isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold disabled:opacity-50"
+          >
+            {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditUserModal({ user, orgs, onClose }) {
+  const queryClient = useQueryClient();
+  const [username, setUsername] = useState(user.user_name || user.username || "");
+  const [email, setEmail] = useState(user.email || "");
+  const [role, setRole] = useState(user.role_label || "user");
+  const [organizationId, setOrganizationId] = useState(
+    user.organization_id || user.org_id || "",
+  );
+  const [error, setError] = useState("");
+
+  const needsOrg = role === "user" || role === "admin";
+
+  const mutation = useMutation(
+    (patch) => updateAdminUser(user.id, patch),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(["admin-users"]);
+        queryClient.invalidateQueries(["admin-user-detail", user.id]);
+        queryClient.invalidateQueries(["admin-user-stats"]);
+        onClose();
+      },
+      onError: (err) => setError(err.message),
+    },
+  );
+
+  const handleSubmit = () => {
+    setError("");
+    if (!username.trim() || !email.trim()) {
+      setError("Username and email are required");
+      return;
+    }
+    if (needsOrg && !organizationId) {
+      setError("Organization is required for this role");
+      return;
+    }
+    mutation.mutate({
+      username: username.trim(),
+      email: email.trim(),
+      role,
+      organization_id: needsOrg ? Number(organizationId) : null,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-foreground">Edit User / Role</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <label className="block text-sm">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Username</span>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm outline-none"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm outline-none"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Role</span>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm bg-white"
+          >
+            {ROLE_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </label>
+        {needsOrg && (
+          <label className="block text-sm">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Organization</span>
+            <select
+              value={organizationId || ""}
+              onChange={(e) => setOrganizationId(e.target.value)}
+              className="mt-1 w-full px-3 py-2 border border-border rounded-lg text-sm bg-white"
+            >
+              <option value="">Select organization…</option>
+              {(orgs || []).map((o) => (
+                <option key={o.id} value={o.id}>{o.org_name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={mutation.isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold disabled:opacity-50"
+          >
+            {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const { me } = useAdminMe();
   const isGlobalAdmin = me?.is_global_admin;
@@ -422,8 +680,10 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editUser, setEditUser] = useState(null);
 
-  const { data: orgs } = useQuery("onboarded-orgs", getOnboardedOrgs, {
+  const { data: orgs } = useQuery("onboarded-orgs", getOrganizations, {
     enabled: !!isGlobalAdmin,
   });
 
@@ -483,18 +743,29 @@ export default function UsersPage() {
             Users &amp; Access
           </h2>
         </div>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50"
-        >
-          {exporting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4" strokeWidth={1.5} />
+        <div className="flex items-center gap-2">
+          {isGlobalAdmin && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2} />
+              Create User
+            </button>
           )}
-          Export CSV
-        </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" strokeWidth={1.5} />
+            )}
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Stats strip */}
@@ -717,10 +988,10 @@ export default function UsersPage() {
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                             Active
                           </span>
-                        ) : u.uam_active === false ? (
+                        ) : !isAccountActive(u) ? (
                           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                            Inactive (UAM)
+                            Inactive (account)
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-xs text-amber-700">
@@ -784,6 +1055,19 @@ export default function UsersPage() {
           userId={selectedUserId}
           onClose={() => setSelectedUserId(null)}
           onDeactivated={() => setSelectedUserId(null)}
+          onEdit={(detail) => setEditUser(detail)}
+        />
+      )}
+
+      {showCreate && (
+        <CreateUserModal orgs={orgs} onClose={() => setShowCreate(false)} />
+      )}
+
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          orgs={orgs}
+          onClose={() => setEditUser(null)}
         />
       )}
     </div>

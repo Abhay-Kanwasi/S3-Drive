@@ -34,7 +34,7 @@ class TestGroupCreate:
             })
             assert resp.status_code == 201
             data = resp.json()
-            assert data["name"] == "dp-Analytics Team"
+            assert data["name"] == "Analytics Team"
             assert data["member_count"] == 0
 
     @pytest.mark.asyncio
@@ -45,7 +45,7 @@ class TestGroupCreate:
                 "name": "Engineering",
             })
             assert resp.status_code == 201
-            assert resp.json()["name"] == "dp-Engineering"
+            assert resp.json()["name"] == "Engineering"
 
     @pytest.mark.asyncio
     async def test_user_cannot_create_group(self, client_as, mock_s3, seed_org):
@@ -57,16 +57,16 @@ class TestGroupCreate:
             assert resp.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_dp_prefix_auto_applied(self, client_as, mock_s3, seed_org):
+    async def test_group_name_is_free_text(self, client_as, mock_s3, seed_org):
         async with client_as(SUPER_ADMIN) as c:
             resp = await c.post(f"{ADMIN}/groups", json={
                 "org_id": seed_org.id,
                 "name": "QA",
             })
-            assert resp.json()["name"] == "dp-QA"
+            assert resp.json()["name"] == "QA"
 
     @pytest.mark.asyncio
-    async def test_dp_prefix_not_doubled(self, client_as, mock_s3, seed_org):
+    async def test_group_name_keeps_literal_prefix(self, client_as, mock_s3, seed_org):
         async with client_as(SUPER_ADMIN) as c:
             resp = await c.post(f"{ADMIN}/groups", json={
                 "org_id": seed_org.id,
@@ -119,8 +119,8 @@ class TestGroupList:
             data = resp.json()
             assert len(data) == 2
             names = [g["name"] for g in data]
-            assert "dp-G1" in names
-            assert "dp-G2" in names
+            assert "G1" in names
+            assert "G2" in names
 
 
 # =========================================================================
@@ -137,7 +137,7 @@ class TestGroupRename:
 
             resp = await c.put(f"{ADMIN}/groups/{gid}", json={"name": "NewName"})
             assert resp.status_code == 200
-            assert resp.json()["name"] == "dp-NewName"
+            assert resp.json()["name"] == "NewName"
 
     @pytest.mark.asyncio
     async def test_rename_conflict_rejected(self, client_as, mock_s3, seed_org):
@@ -164,7 +164,7 @@ class TestGroupDelete:
 
             resp = await c.delete(f"{ADMIN}/groups/{gid}")
             assert resp.status_code == 200
-            assert resp.json()["deleted"] == "dp-ToDelete"
+            assert resp.json()["deleted"] == "ToDelete"
 
             list_resp = await c.get(f"{ADMIN}/groups", params={"org_id": seed_org.id})
             assert len(list_resp.json()) == 0
@@ -172,31 +172,8 @@ class TestGroupDelete:
     @pytest.mark.asyncio
     async def test_delete_cascades_members_and_grants(self, client_as, mock_s3, seed_org, seed_uam_users, db):
         from unittest.mock import patch
-        import re
-        from core.auth import ROLE_SUPER_ADMIN, UAMUser
+        from db.models import User
         from core.approval import create_and_send_group_delete_approval
-
-        db.merge(
-            UAMUser(
-                id=SUPER_ADMIN.id,
-                user_name=SUPER_ADMIN.user_name,
-                email=SUPER_ADMIN.email,
-                role=ROLE_SUPER_ADMIN,
-                subscription_id="sub-001",
-                active=True,
-            )
-        )
-        db.merge(
-            UAMUser(
-                id=ORG_ADMIN.id,
-                user_name=ORG_ADMIN.user_name,
-                email=ORG_ADMIN.email,
-                role=1,
-                subscription_id="sub-001",
-                active=True,
-            )
-        )
-        db.commit()
 
         async with client_as(SUPER_ADMIN) as c:
             create_resp = await c.post(f"{ADMIN}/groups", json={
@@ -210,7 +187,7 @@ class TestGroupDelete:
             })
 
             captured = {}
-            approver = db.query(UAMUser).filter(UAMUser.id == ORG_ADMIN.id).first()
+            approver = db.query(User).filter(User.id == ORG_ADMIN.id).first()
             with patch("core.approval.smtp_configured", return_value=True), patch(
                 "core.approval.send_smtp_html",
                 side_effect=lambda **kw: captured.update({"html": kw.get("html_body", "")}),

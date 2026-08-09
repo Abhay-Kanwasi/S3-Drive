@@ -11,8 +11,10 @@ Covers:
 """
 
 import pytest
+from fastapi import HTTPException
+from unittest.mock import MagicMock
 
-from conftest import (
+from tests.conftest import (
     MASTER_ADMIN,
     ORG_ADMIN,
     SUPER_ADMIN,
@@ -20,14 +22,14 @@ from conftest import (
     USER_RW,
     USER_RW_2,
 )
-from core.auth import UAMUser, ROLE_ADMIN, ROLE_MASTER_ADMIN, ROLE_USER
-from db.models import FolderGrant, GroupMembership, Org, S3UserDeactivation, UserGroup
+from core.auth import ROLE_ADMIN, ROLE_MASTER_ADMIN, ROLE_USER, get_current_user
+from db.models import FolderGrant, GroupMembership, Organization, S3UserDeactivation, User, UserGroup
 
 API = "/api/v2/explorer/admin"
 
 REQUIRED_ROW_KEYS = {
     "id", "user_name", "email", "role_id", "role_label",
-    "subscription_id", "org_name", "active", "uam_active", "s3_deactivated",
+    "subscription_id", "org_name", "active", "account_active", "s3_deactivated",
     "groups", "groups_total",
     "folder_access", "folder_access_total",
 }
@@ -38,31 +40,41 @@ REQUIRED_STATS_KEYS = {"total_users", "master_admins", "active", "groups"}
 
 def _seed_full(db):
     """Seed orgs, users, groups, grants for a realistic test scenario."""
-    org1 = Org(
-        subscription_id="sub-001", org_name="Org1",
-        bucket_name="bucket-1", region="us-east-1", onboarded_by=1,
+    org1 = Organization(
+        id=1,
+        org_key="org-001",
+        org_name="Org1",
+        bucket_name="bucket-1",
+        region="us-east-1",
+        onboarded_by=None,
     )
-    org2 = Org(
-        subscription_id="sub-999", org_name="Org2",
-        bucket_name="bucket-2", region="us-east-1", onboarded_by=1,
+    org2 = Organization(
+        id=2,
+        org_key="org-999",
+        org_name="Org2",
+        bucket_name="bucket-2",
+        region="us-east-1",
+        onboarded_by=None,
     )
     db.add_all([org1, org2])
     db.flush()
 
     users = [
-        UAMUser(id=MASTER_ADMIN.id, user_name="MasterAdmin", email="master@test.com",
-                role=ROLE_MASTER_ADMIN, subscription_id="sub-001", active=True),
-        UAMUser(id=ORG_ADMIN.id, user_name="OrgAdmin", email="orgadmin@test.com",
-                role=ROLE_ADMIN, subscription_id="sub-001", active=True),
-        UAMUser(id=USER_RW.id, user_name="Alice", email="alice@test.com",
-                role=ROLE_USER, subscription_id="sub-001", active=True),
-        UAMUser(id=USER_RW_2.id, user_name="Bob", email="bob@test.com",
-                role=ROLE_USER, subscription_id="sub-001", active=False),
-        UAMUser(id=USER_OTHER_ORG.id, user_name="Charlie", email="charlie@other.com",
-                role=ROLE_USER, subscription_id="sub-999", active=True),
+        User(id=MASTER_ADMIN.id, username="MasterAdmin", email="master@test.com",
+             role=ROLE_MASTER_ADMIN, organization_id=1, active=True),
+        User(id=ORG_ADMIN.id, username="OrgAdmin", email="orgadmin@test.com",
+             role=ROLE_ADMIN, organization_id=1, active=True),
+        User(id=USER_RW.id, username="Alice", email="alice@test.com",
+             role=ROLE_USER, organization_id=1, active=True),
+        User(id=USER_RW_2.id, username="Bob", email="bob@test.com",
+             role=ROLE_USER, organization_id=1, active=False),
+        User(id=USER_OTHER_ORG.id, username="Charlie", email="charlie@other.com",
+             role=ROLE_USER, organization_id=2, active=True),
     ]
     for u in users:
         db.merge(u)
+    db.flush()
+    org1.onboarded_by = MASTER_ADMIN.id
     db.flush()
 
     grp = UserGroup(name="TeamAlpha", org_id=org1.id, created_by=ORG_ADMIN.id)
@@ -94,6 +106,7 @@ async def test_list_response_keys(client_as, db):
     assert REQUIRED_LIST_KEYS <= body.keys()
     for row in body["results"]:
         assert REQUIRED_ROW_KEYS <= row.keys(), f"Missing keys: {REQUIRED_ROW_KEYS - row.keys()}"
+        assert row.get("org_key") == row.get("subscription_id")
 
 
 @pytest.mark.asyncio
@@ -290,6 +303,7 @@ async def test_export_csv_headers(client_as, db):
     lines = r.text.strip().replace("\r", "").split("\n")
     assert lines[0] == "Name,Email,Organization,Role,Groups,Folder Access,Status"
     assert len(lines) == 6  # header + 5 users
+    assert "Inactive (account)" in r.text or "Inactive (S3 Explorer)" in r.text or "Active" in r.text
 
 
 # ── Detail endpoint ──────────────────────────────────────────────────────
@@ -337,11 +351,11 @@ async def test_deactivate_user(client_as, db):
     body = r.json()
     assert body["id"] == USER_RW.id
     assert body["active"] is False
-    assert body["uam_active"] is True
+    assert body["account_active"] is True
     assert body["s3_deactivated"] is True
 
     db.expire_all()
-    target = db.query(UAMUser).filter(UAMUser.id == USER_RW.id).first()
+    target = db.query(User).filter(User.id == USER_RW.id).first()
     assert target.active is True
     assert (
         db.query(S3UserDeactivation)
@@ -352,12 +366,12 @@ async def test_deactivate_user(client_as, db):
 
 
 @pytest.mark.asyncio
-async def test_deactivate_uam_inactive_blocked(client_as, db):
+async def test_deactivate_account_inactive_blocked(client_as, db):
     _seed_full(db)
     async with client_as(MASTER_ADMIN) as c:
         r = await c.post(f"{API}/users/{USER_RW_2.id}/deactivate")
     assert r.status_code == 400
-    assert "uam" in r.json()["detail"].lower()
+    assert "account" in r.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -421,14 +435,14 @@ async def test_reactivate_after_s3_deactivate(client_as, db):
 
 
 @pytest.mark.asyncio
-async def test_reactivate_uam_inactive_blocked(client_as, db):
+async def test_reactivate_account_inactive_blocked(client_as, db):
     _seed_full(db)
     db.add(S3UserDeactivation(user_id=USER_RW_2.id, deactivated_by=MASTER_ADMIN.id))
     db.commit()
     async with client_as(MASTER_ADMIN) as c:
         r = await c.post(f"{API}/users/{USER_RW_2.id}/reactivate")
     assert r.status_code == 400
-    assert "uam" in r.json()["detail"].lower()
+    assert "account" in r.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -475,33 +489,14 @@ async def test_reactivate_after_grace_expired(client_as, db):
 
 @pytest.mark.asyncio
 async def test_auth_blocks_s3_deactivated(db):
-    from unittest.mock import MagicMock
-
-    from fastapi import HTTPException
-    from fastapi.security import HTTPAuthorizationCredentials
-    from jose import jwt
-
-    from core.auth import get_current_user
-    from core.config import settings
-
     _seed_full(db)
     db.add(S3UserDeactivation(user_id=USER_RW.id, deactivated_by=ORG_ADMIN.id))
     db.commit()
 
-    token = jwt.encode(
-        {
-            "user_id": USER_RW.id,
-            "email": USER_RW.email,
-            "type": "access",
-        },
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM,
-    )
-    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
     request = MagicMock()
 
     with pytest.raises(HTTPException) as exc_info:
-        await get_current_user(request, credentials, db)
+        await get_current_user(request, db, x_user_id=str(USER_RW.id))
 
     assert exc_info.value.status_code == 403
     assert "s3 explorer" in exc_info.value.detail.lower()

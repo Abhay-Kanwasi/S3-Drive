@@ -331,7 +331,7 @@ function GrantsTab({ group, groupId, showFolderMapping, setShowFolderMapping }) 
 function SettingsTab({ group, groupId, showRename, setShowRename, showDelete, setShowDelete }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [newName, setNewName] = useState(group.name.replace(/^dp-/, ""));
+  const [newName, setNewName] = useState(group.name);
   const [error, setError] = useState("");
 
   const renameMut = useMutation(
@@ -361,27 +361,24 @@ function SettingsTab({ group, groupId, showRename, setShowRename, showDelete, se
         </div>
         {showRename ? (
           <div>
-            <div className="flex items-center border border-border rounded-lg overflow-hidden mb-2">
-              <span className="px-3 py-2 bg-new-bg text-muted-foreground text-sm font-mono select-none">dp-</span>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => { setNewName(e.target.value); setError(""); }}
-                className="flex-1 px-3 py-2 text-sm text-foreground outline-none"
-                autoFocus
-              />
-            </div>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => { setNewName(e.target.value); setError(""); }}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground outline-none mb-2"
+              autoFocus
+            />
             {error && <p className="text-xs text-destructive mb-2">{error}</p>}
             <div className="flex gap-2">
               <button
-                onClick={() => renameMut.mutate(newName)}
+                onClick={() => renameMut.mutate(newName.trim())}
                 disabled={renameMut.isLoading || !newName.trim()}
                 className="px-3 py-1.5 bg-new-button-bg rounded-lg text-xs font-semibold text-foreground hover-button disabled:opacity-50"
               >
                 Save
               </button>
               <button
-                onClick={() => { setShowRename(false); setNewName(group.name.replace(/^dp-/, "")); }}
+                onClick={() => { setShowRename(false); setNewName(group.name); }}
                 className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
                 Cancel
@@ -389,7 +386,7 @@ function SettingsTab({ group, groupId, showRename, setShowRename, showDelete, se
             </div>
           </div>
         ) : (
-          <p className="text-sm text-foreground font-mono">{group.name}</p>
+          <p className="text-sm text-foreground">{group.name}</p>
         )}
       </div>
 

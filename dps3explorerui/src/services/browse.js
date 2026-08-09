@@ -1,13 +1,7 @@
+import { getAuthHeaders } from "@/services/auth";
+
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const browseHostname = `${API_HOSTNAME}/explorer/browse`;
-
-function getAuthHeaders() {
-  const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 export const browseFolders = async (orgId, prefix = "") => {
   const response = await fetch(`${browseHostname}/browse`, {
@@ -18,6 +12,18 @@ export const browseFolders = async (orgId, prefix = "") => {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to browse");
+  }
+  return response.json();
+};
+
+/** List orgs the current user can access (sidebar). */
+export const listAccessibleOrgs = async () => {
+  const response = await fetch(`${browseHostname}/orgs`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to list organizations");
   }
   return response.json();
 };
