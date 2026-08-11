@@ -24,3 +24,4 @@ pip-log.txt
 __pycache__
 venv
 .env
+.venv
