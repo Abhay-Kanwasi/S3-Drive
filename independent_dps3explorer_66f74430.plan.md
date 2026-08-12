@@ -187,7 +187,6 @@ This plan primarily specifies a GREENFIELD empty DB (the prompt's requirement). 
 ## 3. User/role/permission management (in-app, replaces UAM)
 
 ### 3.1 Data model reuse
- 
 Authorization keeps using the existing gate `require_role([...])` (`core/auth.py`) and folder-grant checks in `core/permissions.py`, but both now read `role`/membership/grants from owned `users` + existing group/grant tables. No new RBAC engine.
 
 ### 3.2 New/changed admin endpoints (under `/api/v2/explorer/admin`)
