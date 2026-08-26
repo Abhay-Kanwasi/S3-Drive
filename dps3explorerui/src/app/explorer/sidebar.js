@@ -5,7 +5,7 @@ import { BucketItem } from "@/components/bucket";
 import { ApplicationContext } from "@/services/ContextProvider";
 import { getUploadConstraints } from "@/services/server";
 import Trash from "@/components/trash";
-import { Plus, FolderPlus, FilePlus, Settings } from "lucide-react";
+import { Plus, FolderPlus, FilePlus, Settings, HardDrive } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Sidebar({ children }) {
@@ -85,6 +85,12 @@ export default function Sidebar({ children }) {
   return (
     <div className="bg-sidebar flex-shrink-0 w-64 h-full flex flex-col z-10 border-r border-sidebar-border">
       <div className="flex flex-col px-4 mx-2 pt-6 flex-1 overflow-y-auto">
+        <div className="flex items-center gap-3 px-4 pb-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle text-accent">
+            <HardDrive className="h-5 w-5" strokeWidth={1.8} />
+          </div>
+          <p className="text-base font-semibold tracking-tight text-gray-900">S3 Drive</p>
+        </div>
         <div className="flex pt-6 text-sidebar-foreground font-semibold text-sm pl-4 border-t border-sidebar-border mt-4">
           Organisation(s)
         </div>
