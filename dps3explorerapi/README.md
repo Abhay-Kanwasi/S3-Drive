@@ -21,7 +21,7 @@ When `DEV_AUTH_MODE=true` (default), callers send `X-User-Id: <integer>`. This i
 ### Prerequisites
 
 - Docker & Docker Compose (recommended)
-- PostgreSQL (empty DB; schema `explorer` is created by Alembic / `scripts/init_db.sql`)
+- PostgreSQL (empty DB; schema `explorer` is created by Alembic)
 - AWS credentials for local S3 access
 
 ### Steps
@@ -32,18 +32,16 @@ cd dps3explorerapi
 cp .env.example .env
 # Fill in: POSTGRES_DATABASE_URI, BUCKET, AWS keys, SMTP, BOOTSTRAP_ADMIN_EMAIL
 
-# Option A — Alembic baseline
+# For direct/non-Compose deployments only:
 alembic upgrade head
 
-# Option B — raw SQL greenfield script
-psql "$POSTGRES_DATABASE_URI" -f scripts/init_db.sql
-
-# Bootstrap first super_admin
-python scripts/create_admin.py
-
-# Run with Docker Compose (from S3-Drive/)
+# Run with Docker Compose (Alembic and the bootstrap super_admin run automatically)
+# (from S3-Drive/)
 cd ..
 docker compose up --build
+
+# For direct/non-Compose deployments, bootstrap the first super_admin manually:
+# python scripts/create_admin.py
 
 # Or run directly
 pip install -r requirements.txt

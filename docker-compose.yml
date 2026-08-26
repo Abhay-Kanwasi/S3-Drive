@@ -57,6 +57,28 @@ services:
         mc mb --ignore-existing local/explorer-trash;
       "
 
+  migrate:
+    build:
+      context: ./dps3explorerapi
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: ./dps3explorerapi/.env
+        required: false
+    command: ["alembic", "upgrade", "head"]
+
+  bootstrap:
+    build:
+      context: ./dps3explorerapi
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - path: ./dps3explorerapi/.env
+        required: false
+    command: ["python", "scripts/create_admin.py"]
+
   api:
     container_name: dps3explorer-api
     build:
@@ -66,6 +88,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      bootstrap:
+        condition: service_completed_successfully
       minio-init:
         condition: service_completed_successfully
     env_file:
