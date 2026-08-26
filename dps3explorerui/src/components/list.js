@@ -76,7 +76,7 @@ export default function List({ name, type, size, keypath, last_modified, created
           setLocation({ x: e.pageX, y: e.pageY });
           setVisible((visible = !visible));
         }}
-        className="flex text-sm flex-row grow bg-card select-none cursor-pointer border border-border rounded-lg px-2 py-2 mr-10 mt-2 hover:bg-new-bg-light w-full transition-colors duration-150"
+        className="flex text-sm flex-row grow bg-card select-none cursor-pointer border border-border rounded-lg px-2 py-2 mr-10 mt-2 hover:bg-gray-50 w-full transition-colors duration-150"
       >
         <div className="w-2/3 text-foreground inline-flex overflow-hidden text-ellipsis items-center">
           {type === "file" ? (
@@ -88,7 +88,7 @@ export default function List({ name, type, size, keypath, last_modified, created
           {type === "folder" && created_by_role && (
             <span className="ml-2 inline-flex items-center">
               {created_by_role === "admin" ? (
-                <Shield className="w-3 h-3 text-amber-500" />
+                <Shield className="w-3 h-3 text-status-warning" />
               ) : (
                 <User className="w-3 h-3 text-blue-400" />
               )}

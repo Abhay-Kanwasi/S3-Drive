@@ -83,7 +83,7 @@ export default function UnonboardModal({ org, onClose, onSubmitted }) {
       <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
-            <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">
+            <p className="text-[11px] font-semibold text-status-warning uppercase tracking-wide">
               Sensitive action · 4-eyes approval
             </p>
             <h3 className="text-base font-semibold text-foreground">
@@ -93,7 +93,7 @@ export default function UnonboardModal({ org, onClose, onSubmitted }) {
           <button
             onClick={handleClose}
             disabled={busy}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            className="p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground"
           >
             <X size={18} />
           </button>
@@ -106,7 +106,7 @@ export default function UnonboardModal({ org, onClose, onSubmitted }) {
             onboarded again after approval. Requires a second master admin to approve by email.
           </p>
 
-          <div className="rounded-lg border border-border bg-new-bg/40 p-3 text-sm space-y-1">
+          <div className="rounded-lg border border-border bg-gray-100 p-3 text-sm space-y-1">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Bucket</span>
               <span className="font-mono text-xs">{org.bucket_name}</span>
@@ -278,8 +278,8 @@ function ApproverSearch({ approvers, approverId, onSelect }) {
                     setQuery("");
                     setOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/50 flex items-center justify-between ${
-                    String(a.id) === String(approverId) ? "bg-accent/30" : ""
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100/50 flex items-center justify-between ${
+                    String(a.id) === String(approverId) ? "bg-accent-subtle" : ""
                   }`}
                 >
                   <span>

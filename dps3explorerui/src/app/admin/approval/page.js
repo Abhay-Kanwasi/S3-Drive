@@ -111,28 +111,28 @@ function ApprovalReviewContent() {
   if (needsUser) {
     return (
       <div className="max-w-xl mx-auto">
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-5 space-y-3">
-          <p className="text-sm font-semibold text-amber-900">
+        <div className="rounded-lg border border-status-warning/30 bg-status-warning-bg p-5 space-y-3">
+          <p className="text-sm font-semibold text-status-warning">
             Select an approver user id
           </p>
-          <p className="text-sm text-amber-900/80">
+          <p className="text-sm text-status-warning/80">
             Temporary stand-in for real auth. Enter the approver&apos;s user id,
             save, then continue this approval. Only the designated approver can
             approve or reject.
           </p>
-          <label className="block text-sm font-medium text-amber-950">
+          <label className="block text-sm font-medium text-status-warning">
             User ID
             <input
               type="text"
               inputMode="numeric"
               value={devUserDraft}
               onChange={(e) => setDevUserDraft(e.target.value)}
-              className="mt-1.5 w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white outline-none"
+              className="mt-1.5 w-full px-3 py-2 border border-status-warning/50 rounded-lg text-sm bg-white outline-none"
             />
           </label>
           <button
             onClick={handleSaveUser}
-            className="mt-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-800 text-white hover:bg-amber-900"
+            className="mt-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-status-warning text-white hover:bg-status-warning"
           >
             Save &amp; reload
           </button>
@@ -144,16 +144,16 @@ function ApprovalReviewContent() {
   if (reviewError) {
     return (
       <div className="max-w-xl mx-auto">
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="rounded-lg border border-status-warning/30 bg-status-warning-bg p-4 flex gap-3">
+          <AlertCircle className="w-5 h-5 text-status-warning flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-amber-900">
+            <p className="text-sm font-semibold text-status-warning">
               This approval link cannot be opened
             </p>
-            <p className="text-sm text-amber-900/80 mt-1">{reviewError}</p>
+            <p className="text-sm text-status-warning/80 mt-1">{reviewError}</p>
             <button
               onClick={() => router.push("/admin/groups")}
-              className="mt-3 text-xs text-amber-900 underline"
+              className="mt-3 text-xs text-status-warning underline"
             >
               Go to admin home
             </button>
@@ -196,7 +196,7 @@ function ApprovalReviewContent() {
             </p>
             <button
               onClick={() => router.push("/admin/groups")}
-              className="mt-4 px-3 py-1.5 text-xs font-semibold rounded-md bg-new-button-bg text-foreground hover-button"
+              className="mt-4 px-3 py-1.5 text-xs font-semibold rounded-md bg-accent text-white hover-button"
             >
               Back to Groups
             </button>
@@ -223,7 +223,7 @@ function ApprovalReviewContent() {
   return (
     <div className="max-w-xl mx-auto space-y-5">
       <div>
-        <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide mb-1">
+        <p className="text-[11px] font-semibold text-status-warning uppercase tracking-wide mb-1">
           Sensitive action · 4-eyes approval
         </p>
         <h1 className="text-xl font-semibold text-foreground">{title}</h1>
@@ -240,7 +240,7 @@ function ApprovalReviewContent() {
             : "asked you to review a group deletion request. Rejecting will leave the group unchanged."}
       </p>
 
-      <div className="rounded-lg border border-border bg-new-bg/40 p-4 text-sm space-y-2">
+      <div className="rounded-lg border border-border bg-gray-100 p-4 text-sm space-y-2">
         {isUnonboard ? (
           <>
             <Row label="Organization" value={summary.org_name} bold />
@@ -270,8 +270,8 @@ function ApprovalReviewContent() {
         )}
       </div>
 
-      <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2">
-        <p className="text-xs text-amber-900">
+      <div className="rounded-md border border-status-warning/30 bg-status-warning-bg px-3 py-2">
+        <p className="text-xs text-status-warning">
           <strong>4-eyes verification:</strong> Only the designated approver can confirm this action.
           The requester cannot approve their own request.
         </p>

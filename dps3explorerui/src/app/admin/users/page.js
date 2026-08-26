@@ -129,7 +129,7 @@ function UserDetailPanel({ userId, onClose, onDeactivated, onEdit }) {
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded hover:bg-accent text-muted-foreground"
+          className="absolute top-4 right-4 p-1 rounded hover:bg-gray-100 text-muted-foreground"
         >
           <X className="w-4 h-4" />
         </button>
@@ -187,8 +187,8 @@ function UserDetailPanel({ userId, onClose, onDeactivated, onEdit }) {
                     Inactive (account)
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 text-sm text-amber-700">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="inline-flex items-center gap-1.5 text-sm text-status-warning">
+                    <span className="w-2 h-2 rounded-full bg-status-warning" />
                     Inactive (S3 Explorer)
                   </span>
                 )}
@@ -202,7 +202,7 @@ function UserDetailPanel({ userId, onClose, onDeactivated, onEdit }) {
                     {detail.groups.map((g) => (
                       <span
                         key={g.id}
-                        className="inline-flex items-center gap-1 text-xs font-medium bg-new-bg rounded-full px-2.5 py-1 text-foreground"
+                        className="inline-flex items-center gap-1 text-xs font-medium bg-gray-100 rounded-full px-2.5 py-1 text-foreground"
                       >
                         <Users className="w-3 h-3" strokeWidth={1.5} />
                         {g.name}
@@ -267,7 +267,7 @@ function UserDetailPanel({ userId, onClose, onDeactivated, onEdit }) {
                 <button
                   type="button"
                   onClick={() => onEdit?.(detail)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-border rounded-lg text-sm font-medium text-foreground bg-white hover:bg-accent transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-border rounded-lg text-sm font-medium text-foreground bg-white hover:bg-gray-100 transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5" strokeWidth={1.5} />
                   Edit Role
@@ -544,7 +544,7 @@ function CreateUserModal({ orgs, onClose }) {
           <button
             onClick={handleSubmit}
             disabled={mutation.isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50"
           >
             {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             Create
@@ -659,7 +659,7 @@ function EditUserModal({ user, orgs, onClose }) {
           <button
             onClick={handleSubmit}
             disabled={mutation.isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50"
           >
             {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             Save
@@ -747,7 +747,7 @@ export default function UsersPage() {
           {isGlobalAdmin && (
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+              className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
             >
               <Plus className="w-4 h-4" strokeWidth={2} />
               Create User
@@ -756,7 +756,7 @@ export default function UsersPage() {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-gray-100 transition-colors disabled:opacity-50"
           >
             {exporting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -841,7 +841,7 @@ export default function UsersPage() {
           <div className="rounded-lg overflow-hidden border border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-new-table-header-bg">
+                <tr className="bg-gray-50">
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">
                     User
                   </th>
@@ -872,12 +872,12 @@ export default function UsersPage() {
                     <tr
                       key={u.id}
                       onClick={() => setSelectedUserId(u.id)}
-                      className="hover:bg-new-bg-light/50 transition-colors cursor-pointer"
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
                     >
                       {/* User */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-new-bg flex items-center justify-center text-foreground text-xs font-semibold flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
                             {(u.user_name || u.email || "?")
                               .charAt(0)
                               .toUpperCase()}
@@ -916,7 +916,7 @@ export default function UsersPage() {
                             {u.groups.slice(0, 2).map((g) => (
                               <span
                                 key={g.id}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium bg-new-bg rounded-full px-2 py-0.5 text-foreground"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium bg-gray-100 rounded-full px-2 py-0.5 text-foreground"
                               >
                                 <Users
                                   className="w-3 h-3"
@@ -994,8 +994,8 @@ export default function UsersPage() {
                             Inactive (account)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span className="inline-flex items-center gap-1.5 text-xs text-status-warning">
+                            <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
                             Inactive (S3)
                           </span>
                         )}
@@ -1017,7 +1017,7 @@ export default function UsersPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1027,7 +1027,7 @@ export default function UsersPage() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

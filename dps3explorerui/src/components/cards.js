@@ -80,7 +80,7 @@ export default function Cards({ name, type, size, last_modified, keypath, create
         {type === "folder" && created_by_role && (
           <span className="absolute top-2 right-2">
             {created_by_role === "admin" ? (
-              <Shield className="w-3.5 h-3.5 text-amber-500" />
+              <Shield className="w-3.5 h-3.5 text-status-warning" />
             ) : (
               <User className="w-3.5 h-3.5 text-blue-400" />
             )}

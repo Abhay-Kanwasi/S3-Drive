@@ -2,7 +2,7 @@ import Image from "next/image";
 import Logo from "../assets/dplogo.svg";
 export default function Header({ children }) {
   return (
-    <div className="bg-new-bg fixed row-start-1 w-full h-25 z-20 border-b border-border">
+    <div className="bg-gray-25 fixed row-start-1 w-full h-25 z-20 border-b border-gray-200">
       <div className="flex flex-row justify-between my-5">
         {/* <p className="mx-4">logo</p> */}
         <div className="pl-10">

@@ -32,7 +32,7 @@ export function BucketItem({ children }) {
       <div className="text-sidebar-foreground">
         {bucket.data.map((items, index) => (
           <div
-            className="flex flex-row rounded-lg text-sm items-center gap-2 cursor-pointer hover:bg-new-bg-light hover:text-foreground px-4 py-2.5 mt-1 transition-colors duration-150"
+            className="flex flex-row rounded-lg text-sm items-center gap-2 cursor-pointer hover:bg-gray-50 hover:text-foreground px-4 py-2.5 mt-1 transition-colors duration-150"
             key={index}
             onClick={() => {
               setTag("explorer");

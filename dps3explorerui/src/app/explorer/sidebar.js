@@ -74,35 +74,41 @@ export default function Sidebar({ children }) {
   useEffect(() => {
     const handleClickOutsideupload = (e) => {
       if (newref.current && !newref.current.contains(e.target)) {
-        setToggle((prev) => !prev);
+        setToggle(false);
       }
     };
     document.addEventListener("click", handleClickOutsideupload, true);
-    document.addEventListener("mousedown", handleClickOutsideupload, true);
     return () => {
       document.removeEventListener("click", handleClickOutsideupload, true);
-      document.removeEventListener("mousedown", handleClickOutsideupload, true);
     };
-  });
+  }, []);
   return (
     <div className="bg-sidebar flex-shrink-0 w-64 h-full flex flex-col z-10 border-r border-sidebar-border">
       <div className="flex flex-col px-4 mx-2 pt-6 flex-1 overflow-y-auto">
+        <div className="flex pt-6 text-sidebar-foreground font-semibold text-sm pl-4 border-t border-sidebar-border mt-4">
+          Organisation(s)
+        </div>
+        <BucketItem />
+      </div>
+      <div className="flex-shrink-0 px-4 mx-2 pb-4 space-y-2">
         <div
+          ref={newref}
           onClick={() => {
-            setToggle(true);
+            setToggle((previous) => !previous);
           }}
-          className="relative bg-new-button-bg flex shadow-sm mx-4 rounded-lg text-foreground font-semibold hover-button cursor-pointer"
+          aria-expanded={toggle}
+          aria-label="Create or upload"
+          className="fixed bottom-6 right-6 z-50 min-w-[108px] bg-accent flex justify-center shadow-elevated rounded-full text-white font-semibold cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent-hover"
         >
-          <div className="flex items-center">
-            <Plus strokeWidth={2} className="mr-3 mx-7 my-2.5" />
-            <p className="font-medium my-2.5 mr-8">New</p>
+          <div className="flex items-center px-4 py-3">
+            <Plus strokeWidth={2} className={`mr-2 h-5 w-5 transition-transform duration-200 ${toggle ? "rotate-45" : ""}`} />
+            <p className="font-medium text-sm">New</p>
           </div>
 
-          {toggle && (
-            <div
-              ref={newref}
-              className="border border-border text-sm w-44 absolute top-full left-0 mt-1 text-foreground divide-y divide-border bg-popover rounded-lg shadow-lg z-20"
-            >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`border border-gray-200 text-sm w-48 absolute bottom-full right-0 mb-2 p-1 text-foreground bg-white rounded-xl shadow-elevated origin-bottom-right transition-all duration-200 ease-out ${toggle ? "opacity-100 scale-100 translate-y-0" : "pointer-events-none opacity-0 scale-95 translate-y-2"}`}
+          >
               <p
                 onClick={() => {
                   if (!isAdmin && (!path || path.length === 0)) {
@@ -114,7 +120,7 @@ export default function Sidebar({ children }) {
                     dialogref.current.click();
                   }
                 }}
-                className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm"
+                className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm"
               >
                 <FilePlus className="mr-3 w-4 h-4" strokeWidth={1.5} />
                 File Upload
@@ -148,27 +154,19 @@ export default function Sidebar({ children }) {
                       setContextfolder("");
                     }
                   }}
-                  className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm"
+                  className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm"
                 >
                   <FolderPlus className="mr-3 w-4 h-4" strokeWidth={1.5} />
                   New folder
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
-
-        <div className="flex pt-6 text-sidebar-foreground font-semibold text-sm pl-4 border-t border-sidebar-border mt-4">
-          Organisation(s)
-        </div>
-        <BucketItem />
-      </div>
-      <div className="flex-shrink-0 px-4 mx-2 pb-4 space-y-2">
         <Trash />
         {isAdmin && (
           <button
             onClick={() => router.push("/admin")}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Settings className="w-4 h-4" strokeWidth={1.5} />
             Admin Panel

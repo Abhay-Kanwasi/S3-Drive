@@ -15,7 +15,7 @@ export default function S3ExplorerAccessBlocked({ access }) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full gap-4 px-6 text-center bg-background">
-      <ShieldX className="w-12 h-12 text-amber-600" strokeWidth={1.5} />
+      <ShieldX className="w-12 h-12 text-status-warning" strokeWidth={1.5} />
       <div className="max-w-md space-y-3">
         <h1 className="text-lg font-semibold text-foreground">
           {s3Only

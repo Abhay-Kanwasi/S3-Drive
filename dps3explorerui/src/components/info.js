@@ -46,7 +46,7 @@ export default function Information({ children }) {
                 setContextinfo(false);
                 setContextauthor("");
               }}
-              className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors duration-150 p-1 rounded-md hover:bg-accent"
+              className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors duration-150 p-1 rounded-md hover:bg-gray-100"
             >
               <X className="w-5 h-5" />
             </button>

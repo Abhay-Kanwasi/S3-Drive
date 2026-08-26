@@ -26,7 +26,7 @@ const EVENT_COLORS = {
   TRASH_PURGED: "bg-red-50 text-red-700 border-red-200",
   FILE_UPLOAD_INITIATED: "bg-purple-50 text-purple-700 border-purple-200",
   FILE_TRASHED: "bg-red-50 text-red-700 border-red-200",
-  ORG_ONBOARDED: "bg-amber-50 text-amber-700 border-amber-200",
+  ORG_ONBOARDED: "bg-status-warning-bg text-status-warning border-status-warning/30",
   GROUP_CREATED: "bg-indigo-50 text-indigo-700 border-indigo-200",
   GROUP_RENAMED: "bg-indigo-50 text-indigo-700 border-indigo-200",
   GROUP_DELETED: "bg-red-50 text-red-700 border-red-200",
@@ -149,7 +149,7 @@ export default function AuditPage() {
         <button
           onClick={handleExport}
           disabled={total === 0}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="w-4 h-4" />
           Export CSV
@@ -168,7 +168,7 @@ export default function AuditPage() {
 
       {/* Warning banner */}
       {warning && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-status-warning-bg border border-status-warning/30 text-sm text-status-warning">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>{warning.message}</span>
         </div>
@@ -356,14 +356,14 @@ export default function AuditPage() {
             <button
               onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
               disabled={offset === 0}
-              className="p-1.5 rounded-md border border-border hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md border border-border hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => setOffset((o) => o + PAGE_SIZE)}
               disabled={!hasMore}
-              className="p-1.5 rounded-md border border-border hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md border border-border hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

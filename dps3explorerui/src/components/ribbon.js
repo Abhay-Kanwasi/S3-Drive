@@ -25,7 +25,7 @@ export default function Ribbon({ children }) {
           <div className="">
             <button
               onClick={toggleView}
-              className="ml-2 font-bold inline-flex items-center hover:bg-accent hover:text-new-bg hover:cursor-pointer hover:rounded-md px-3 -my-2"
+              className="ml-2 font-bold inline-flex items-center hover:bg-gray-100 hover:text-gray-900 hover:cursor-pointer hover:rounded-md px-3 -my-2"
             >
               ...
             </button>
@@ -88,7 +88,7 @@ function Dropdown({ visible, list, sendData, setVisible }) {
                     setPath(_p);
                     folderMutation.mutate(_p);
                   }}
-                  className="hover:bg-new-bg-light hover:cursor-pointer hover:text-foreground rounded-md px-6 py-2.5 text-sm"
+                  className="hover:bg-gray-50 hover:cursor-pointer hover:text-gray-900 rounded-md px-6 py-2.5 text-sm"
                 >
                   {data}
                 </li>
@@ -127,7 +127,7 @@ function BreadCrumb({ items, initial }) {
                     setPath(_p);
                     folderMutation.mutate(_p);
                   }}
-                  className="ms-1 md:ms-2 text-md font-medium text-foreground hover:cursor-pointer hover:text-new-bg"
+                  className="ms-1 md:ms-2 text-md font-medium text-gray-500 hover:cursor-pointer hover:text-gray-900"
                 >
                   {data}
                 </a>

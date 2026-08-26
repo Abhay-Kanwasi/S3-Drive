@@ -35,7 +35,7 @@ function DevUserSelector({ initialValue, onSaved }) {
     <div className="flex flex-col items-center justify-center h-full w-full gap-4 px-6 bg-background">
       <div className="w-full max-w-sm border border-border rounded-xl p-6 bg-white shadow-sm space-y-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 mb-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-status-warning mb-1">
             Temporary · Dev only
           </p>
           <h1 className="text-lg font-semibold text-foreground">Dev user selector</h1>
@@ -61,7 +61,7 @@ function DevUserSelector({ initialValue, onSaved }) {
         <button
           type="button"
           onClick={handleSave}
-          className="w-full px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+          className="w-full px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
         >
           Save &amp; reload
         </button>
@@ -89,14 +89,14 @@ function DevUserBar({ currentUserId, username }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-[11px] px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 text-amber-900 font-medium shadow-sm"
+        className="text-[11px] px-2.5 py-1 rounded-md border border-status-warning/50 bg-status-warning-bg text-status-warning font-medium shadow-sm"
         title="Temporary identity stand-in"
       >
         Dev user: {username || currentUserId}
       </button>
       {open && (
         <div className="mt-1 w-56 rounded-lg border border-border bg-white p-3 shadow-lg space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-status-warning">
             Change user id
           </p>
           <input
@@ -109,7 +109,7 @@ function DevUserBar({ currentUserId, username }) {
           <button
             type="button"
             onClick={handleSave}
-            className="w-full px-2 py-1.5 bg-new-button-bg rounded text-xs font-semibold"
+            className="w-full px-2 py-1.5 bg-accent rounded text-xs font-semibold"
           >
             Save &amp; reload
           </button>

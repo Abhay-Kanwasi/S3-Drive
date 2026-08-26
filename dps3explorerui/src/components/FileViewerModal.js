@@ -221,7 +221,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
             {["csv", "parquet", "xlsx"].includes(fileExt) ? (
               <FileSpreadsheet className="w-4 h-4 text-emerald-500" strokeWidth={1.5} />
             ) : (
-              <FileJson className="w-4 h-4 text-amber-500" strokeWidth={1.5} />
+              <FileJson className="w-4 h-4 text-status-warning" strokeWidth={1.5} />
             )}
             <span className="text-sm font-semibold text-foreground">{fileName}</span>
             <span className="px-2 py-0.5 text-[10px] rounded bg-muted uppercase font-mono text-muted-foreground">
@@ -240,7 +240,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-4 h-4" strokeWidth={2} />
           </button>
@@ -271,7 +271,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
             <div className="relative">
               <button
                 onClick={() => setShowColPicker(!showColPicker)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border bg-white hover:bg-accent transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border bg-white hover:bg-gray-100 transition-colors"
               >
                 <Columns3 className="h-3.5 w-3.5" />
                 Columns ({visibleCols.size}/{preview.columns.length})
@@ -284,7 +284,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                   </div>
                   <div className="p-2 space-y-0.5">
                     {preview.columns.map((col) => (
-                      <label key={col} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-accent cursor-pointer text-xs">
+                      <label key={col} className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-gray-100 cursor-pointer text-xs">
                         <input
                           type="checkbox"
                           checked={visibleCols.has(col)}
@@ -356,10 +356,10 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                     : `${((page - 1) * pageSize + 1).toLocaleString()}–${Math.min(page * pageSize, totalRows).toLocaleString()} of ${totalRows.toLocaleString()}`}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button disabled={page <= 1} onClick={() => goToPage(1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="First page">
+                  <button disabled={page <= 1} onClick={() => goToPage(1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="First page">
                     <ChevronsLeft className="h-3.5 w-3.5" />
                   </button>
-                  <button disabled={page <= 1} onClick={() => goToPage(page - 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Previous page">
+                  <button disabled={page <= 1} onClick={() => goToPage(page - 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Previous page">
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </button>
                   {pageNumbers.map((p, i) =>
@@ -371,18 +371,18 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                         onClick={() => goToPage(p)}
                         className={`h-7 min-w-[1.75rem] px-1.5 flex items-center justify-center rounded-md text-xs font-medium transition-colors ${
                           p === page
-                            ? "bg-new-bg text-white shadow-sm"
-                            : "border border-border text-muted-foreground hover:bg-accent"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "border border-border text-muted-foreground hover:bg-gray-100"
                         }`}
                       >
                         {p}
                       </button>
                     )
                   )}
-                  <button disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Next page">
+                  <button disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Next page">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </button>
-                  <button disabled={page >= totalPages} onClick={() => goToPage(totalPages)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Last page">
+                  <button disabled={page >= totalPages} onClick={() => goToPage(totalPages)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Last page">
                     <ChevronsRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -403,7 +403,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                       {displayCols.map((col) => (
                         <th
                           key={col}
-                          className="px-3 py-2.5 text-left text-xs font-medium border-b border-border cursor-pointer hover:bg-accent whitespace-nowrap select-none transition-colors"
+                          className="px-3 py-2.5 text-left text-xs font-medium border-b border-border cursor-pointer hover:bg-gray-100 whitespace-nowrap select-none transition-colors"
                           onClick={() => handleSort(col)}
                         >
                           <span className="inline-flex items-center gap-1">
@@ -436,7 +436,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                       return (
                         <tr
                           key={globalIdx}
-                          className="border-b border-border/50 hover:bg-accent/50 transition-colors"
+                          className="border-b border-border/50 hover:bg-gray-100/50 transition-colors"
                         >
                           <td className="px-3 py-1.5 text-xs text-muted-foreground tabular-nums font-mono">
                             {globalIdx + 1}
@@ -489,10 +489,10 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <button disabled={page <= 1} onClick={() => goToPage(1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="First page">
+                  <button disabled={page <= 1} onClick={() => goToPage(1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="First page">
                     <ChevronsLeft className="h-3.5 w-3.5" />
                   </button>
-                  <button disabled={page <= 1} onClick={() => goToPage(page - 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Previous page">
+                  <button disabled={page <= 1} onClick={() => goToPage(page - 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Previous page">
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </button>
 
@@ -505,8 +505,8 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                         onClick={() => goToPage(p)}
                         className={`h-7 min-w-[1.75rem] px-1.5 flex items-center justify-center rounded-md text-xs font-medium transition-colors ${
                           p === page
-                            ? "bg-new-bg text-white shadow-sm"
-                            : "border border-border text-muted-foreground hover:bg-accent"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "border border-border text-muted-foreground hover:bg-gray-100"
                         }`}
                       >
                         {p}
@@ -514,10 +514,10 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
                     )
                   )}
 
-                  <button disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Next page">
+                  <button disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Next page">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </button>
-                  <button disabled={page >= totalPages} onClick={() => goToPage(totalPages)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Last page">
+                  <button disabled={page >= totalPages} onClick={() => goToPage(totalPages)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors" title="Last page">
                     <ChevronsRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -535,7 +535,7 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
               </span>
               <button
                 onClick={() => setExpandedCell(null)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

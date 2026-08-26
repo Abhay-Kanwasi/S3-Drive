@@ -84,7 +84,7 @@ export default function UserPicker({ orgId, selectedUsers, onToggle, excludeIds 
           {selectedUsers.map((u) => (
             <span
               key={u.id}
-              className="inline-flex items-center gap-1 bg-new-bg rounded-full px-2.5 py-1 text-xs text-foreground"
+              className="inline-flex items-center gap-1 bg-gray-100 rounded-full px-2.5 py-1 text-xs text-foreground"
             >
               {u.user_name || u.email}
               <button onClick={() => onToggle(u)} className="hover:text-destructive">
@@ -112,12 +112,12 @@ export default function UserPicker({ orgId, selectedUsers, onToggle, excludeIds 
                 <button
                   key={u.id}
                   onClick={() => onToggle(u)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-new-bg-light/50 transition-colors ${
-                    isSelected ? "bg-new-bg-light/80" : ""
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                    isSelected ? "bg-accent-subtle" : ""
                   }`}
                 >
                   <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                    isSelected ? "bg-new-button-bg border-new-button-bg" : "border-border"
+                    isSelected ? "bg-accent border-accent" : "border-border"
                   }`}>
                     {isSelected && <Check className="w-3 h-3 text-foreground" strokeWidth={2} />}
                   </div>
