@@ -73,7 +73,7 @@ export default function Delete({ children }) {
             <div className="px-6 pb-2 text-xs text-destructive">{error}</div>
           )}
           {processing && (
-            <div className="px-6 pb-2 text-xs text-amber-600">
+            <div className="px-6 pb-2 text-xs text-status-warning">
               Moving to trash — please wait, do not close this window...
             </div>
           )}
@@ -86,7 +86,7 @@ export default function Delete({ children }) {
                 setContextdelete(false);
               }}
               disabled={processing}
-              className="px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg border border-border hover:bg-accent transition-colors duration-150 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg border border-border hover:bg-gray-100 transition-colors duration-150 disabled:opacity-50"
             >
               Cancel
             </button>

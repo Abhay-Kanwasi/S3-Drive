@@ -232,7 +232,7 @@ export default function ContextMenu({
                 className="w-full px-2 py-1.5 text-sm border border-border rounded bg-secondary text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <div className="flex gap-2 mt-2">
-                <button onClick={handleRename} className="text-xs px-2 py-1 bg-new-button-bg rounded text-foreground">Save</button>
+                <button onClick={handleRename} className="text-xs px-2 py-1 bg-accent rounded text-white">Save</button>
                 <button onClick={() => { setRenaming(false); setVisible(false); }} className="text-xs px-2 py-1 bg-secondary rounded text-foreground border border-border">Cancel</button>
               </div>
             </div>
@@ -246,7 +246,7 @@ export default function ContextMenu({
                     assignContext();
                     setVisible(false);
                   }}
-                  className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                  className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                 >
                   <Info className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                   <p>File Information</p>
@@ -259,7 +259,7 @@ export default function ContextMenu({
                     setViewerFile({ fileKey: keypath, fileName: name });
                     setVisible(false);
                   }}
-                  className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                  className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                 >
                   <Eye className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                   <p>View File</p>
@@ -269,7 +269,7 @@ export default function ContextMenu({
               {!trashView && (
                 <div
                   onClick={handleCopyPath}
-                  className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                  className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                 >
                   <Copy className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                   <p>{copied ? "Copied!" : "Copy Path"}</p>
@@ -283,7 +283,7 @@ export default function ContextMenu({
                       assignContext();
                       restoreitems();
                     }}
-                    className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                    className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                   >
                     <Image width={25} className="ml-2 mr-4" src={Restore} alt="Restore" />
                     <p>Restore</p>
@@ -291,7 +291,7 @@ export default function ContextMenu({
                   {currentOrg && !confirmPurge && (
                     <div
                       onClick={() => setConfirmPurge(true)}
-                      className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm text-destructive transition-colors duration-150"
+                      className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm text-destructive transition-colors duration-150"
                     >
                       <Trash2 className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                       <p>Permanently Delete</p>
@@ -315,14 +315,14 @@ export default function ContextMenu({
                     <>
                       <div
                         onClick={() => { setNewName(name); setRenaming(true); }}
-                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                       >
                         <Pencil className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                         <p>Rename</p>
                       </div>
                       <div
                         onClick={handleFolderDelete}
-                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm text-destructive transition-colors duration-150"
+                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm text-destructive transition-colors duration-150"
                       >
                         <FolderX className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                         <p>Move to Trash</p>
@@ -334,21 +334,21 @@ export default function ContextMenu({
                     <>
                       <div
                         onClick={() => { setFileNewName(name); setFileRenaming(true); }}
-                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                       >
                         <Pencil className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                         <p>Rename</p>
                       </div>
                       <div
                         onClick={() => { setFileOp("copy"); setFolderPickerOpen(true); setVisible(false); }}
-                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                       >
                         <FolderInput className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                         <p>Copy to…</p>
                       </div>
                       <div
                         onClick={() => { setFileOp("move"); setFolderPickerOpen(true); setVisible(false); }}
-                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm transition-colors duration-150"
+                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"
                       >
                         <FolderSymlink className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                         <p>Move to…</p>
@@ -359,7 +359,7 @@ export default function ContextMenu({
                           assignContext();
                           setVisible(false);
                         }}
-                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-accent flex items-center text-sm text-destructive transition-colors duration-150"
+                        className="hover:cursor-pointer hover:rounded-lg font-normal px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm text-destructive transition-colors duration-150"
                       >
                         <Trash2 className="ml-2 mr-4 w-4 h-4" strokeWidth={1.5} />
                         <p>Delete</p>
@@ -380,13 +380,13 @@ export default function ContextMenu({
                         disabled={opLoading}
                       />
                       <div className="flex gap-2 mt-2">
-                        <button onClick={handleFileRename} disabled={opLoading} className="text-xs px-2 py-1 bg-new-button-bg rounded text-foreground disabled:opacity-50">
+                        <button onClick={handleFileRename} disabled={opLoading} className="text-xs px-2 py-1 bg-accent rounded text-white disabled:opacity-50">
                           {opLoading ? "Renaming…" : "Save"}
                         </button>
                         <button onClick={() => { setFileRenaming(false); setVisible(false); }} disabled={opLoading} className="text-xs px-2 py-1 bg-secondary rounded text-foreground border border-border disabled:opacity-50">Cancel</button>
                       </div>
                       {opLoading && (
-                        <p className="text-[11px] text-amber-600 mt-2">
+                        <p className="text-[11px] text-status-warning mt-2">
                           Please wait — do not close this window. Large files may take a moment.
                         </p>
                       )}

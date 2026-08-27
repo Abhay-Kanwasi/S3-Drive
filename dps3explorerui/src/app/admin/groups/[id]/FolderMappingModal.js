@@ -94,8 +94,8 @@ export default function FolderMappingModal({ groupId, orgId, onClose }) {
                   onClick={selectCurrentAsTarget}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
                     selectedPrefix === currentPrefix
-                      ? "bg-new-bg-light ring-1 ring-new-button-bg"
-                      : "hover:bg-new-bg-light/50"
+                      ? "bg-gray-100 ring-1 ring-accent"
+                      : "hover:bg-gray-50"
                   }`}
                 >
                   <FolderOpen className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
@@ -112,8 +112,8 @@ export default function FolderMappingModal({ groupId, orgId, onClose }) {
                   key={f.prefix}
                   className={`flex items-center gap-2 rounded-lg transition-colors ${
                     selectedPrefix === f.prefix
-                      ? "bg-new-bg-light ring-1 ring-new-button-bg"
-                      : "hover:bg-new-bg-light/50"
+                      ? "bg-gray-100 ring-1 ring-accent"
+                      : "hover:bg-gray-50"
                   }`}
                 >
                   <button
@@ -142,7 +142,7 @@ export default function FolderMappingModal({ groupId, orgId, onClose }) {
                   onClick={selectCurrentAsTarget}
                   className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     selectedPrefix === currentPrefix
-                      ? "bg-new-button-bg text-foreground"
+                      ? "bg-accent text-white"
                       : "border border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -167,7 +167,7 @@ export default function FolderMappingModal({ groupId, orgId, onClose }) {
                     value="read"
                     checked={accessLevel === "read"}
                     onChange={() => setAccessLevel("read")}
-                    className="accent-new-button-bg"
+                    className="accent-accent"
                   />
                   <span className="text-sm text-foreground">Read</span>
                 </label>
@@ -178,7 +178,7 @@ export default function FolderMappingModal({ groupId, orgId, onClose }) {
                     value="read_write"
                     checked={accessLevel === "read_write"}
                     onChange={() => setAccessLevel("read_write")}
-                    className="accent-new-button-bg"
+                    className="accent-accent"
                   />
                   <span className="text-sm text-foreground">Read & Write</span>
                 </label>
@@ -195,7 +195,7 @@ export default function FolderMappingModal({ groupId, orgId, onClose }) {
             <button
               onClick={() => mutation.mutate()}
               disabled={!selectedPrefix || mutation.isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-50"
             >
               {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               Map Folder

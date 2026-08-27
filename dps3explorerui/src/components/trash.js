@@ -15,7 +15,7 @@ export default function Trash() {
     <div className="text-sidebar-foreground select-none">
       <hr className="border-sidebar-border" />
       <div
-        className="flex flex-row rounded-lg truncate text-sm items-center gap-x-1.5 cursor-pointer hover:bg-new-bg-light hover:text-foreground px-6 py-3 mt-1.5 transition-colors duration-150"
+        className="flex flex-row rounded-lg truncate text-sm items-center gap-x-1.5 cursor-pointer hover:bg-gray-50 hover:text-foreground px-6 py-3 mt-1.5 transition-colors duration-150"
         onClick={() => {
           setTag("trash");
           setTrashView(true);

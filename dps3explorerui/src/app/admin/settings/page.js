@@ -133,7 +133,7 @@ export default function PlatformSettingsPage() {
         <button
           onClick={handleSave}
           disabled={!dirty || mutation.isLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+          className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
         >
           {mutation.isLoading ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -159,7 +159,7 @@ export default function PlatformSettingsPage() {
       {/* Allowed File Formats */}
       <section className="mb-8">
         <div className="border border-border rounded-lg overflow-hidden">
-          <div className="bg-new-table-header-bg px-5 py-3 border-b border-border">
+          <div className="bg-gray-50 px-5 py-3 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Allowed File Formats</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Only files with these extensions can be uploaded. Click the color dot to change the icon color.
@@ -170,7 +170,7 @@ export default function PlatformSettingsPage() {
               {extensions.map((entry, idx) => (
                 <span
                   key={entry.ext}
-                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-new-bg-light border border-border rounded-md text-xs font-medium text-foreground"
+                  className="relative inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 border border-border rounded-md text-xs font-medium text-foreground"
                 >
                   <button
                     onClick={() => setEditingColorIdx(editingColorIdx === idx ? null : idx)}
@@ -219,7 +219,7 @@ export default function PlatformSettingsPage() {
                   }
                 }}
                 placeholder="e.g. .avro"
-                className="w-32 px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50"
+                className="w-32 px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-accent placeholder:text-muted-foreground/50"
               />
               <div className="flex items-center gap-1.5 px-2 py-1.5 border border-border rounded-lg">
                 <Palette className="w-3.5 h-3.5 text-muted-foreground" />
@@ -234,7 +234,7 @@ export default function PlatformSettingsPage() {
               <button
                 onClick={handleAddExtension}
                 disabled={!newExt.trim()}
-                className="flex items-center gap-1.5 px-3 py-2 bg-new-button-bg rounded-lg text-sm font-medium text-foreground hover-button disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+                className="flex items-center gap-1.5 px-3 py-2 bg-accent rounded-lg text-sm font-medium text-white hover-button disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
               >
                 <Plus className="w-3.5 h-3.5" strokeWidth={2} />
                 Add
@@ -247,7 +247,7 @@ export default function PlatformSettingsPage() {
       {/* Maximum Upload Size */}
       <section className="mb-8">
         <div className="border border-border rounded-lg overflow-hidden">
-          <div className="bg-new-table-header-bg px-5 py-3 border-b border-border">
+          <div className="bg-gray-50 px-5 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <HardDrive className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
               <div>
@@ -266,7 +266,7 @@ export default function PlatformSettingsPage() {
                   onClick={() => handleSizeChange(preset.bytes)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                     maxBytes === preset.bytes
-                      ? "bg-new-bg-light border-new-bg text-foreground"
+                      ? "bg-gray-100 border-accent text-foreground"
                       : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
                   }`}
                 >

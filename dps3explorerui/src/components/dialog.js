@@ -44,7 +44,7 @@ export default function Dialog({ children }) {
             </div>
             <button
               onClick={() => setContexterrormodal(false)}
-              className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-accent transition-colors duration-150"
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
             >
               <CircleX className="w-4 h-4" strokeWidth={2} />
             </button>

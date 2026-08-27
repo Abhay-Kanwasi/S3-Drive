@@ -39,7 +39,7 @@ export default function AdminPage() {
         {isGlobalAdmin && (
           <button
             onClick={() => setShowWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+            className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
           >
             <Plus className="w-4 h-4" strokeWidth={2} />
             Add S3 Bucket
@@ -55,7 +55,7 @@ export default function AdminPage() {
         <div className="rounded-lg overflow-hidden border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-new-table-header-bg">
+              <tr className="bg-gray-50">
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Organization</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Org key</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Bucket Name</th>
@@ -67,7 +67,7 @@ export default function AdminPage() {
             </thead>
             <tbody className="bg-white divide-y divide-border">
               {orgs.map((org) => (
-                <tr key={org.id} className="hover:bg-new-bg-light/50 transition-colors">
+                <tr key={org.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{org.org_name}</td>
                   <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{org.org_key || org.subscription_id || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{org.bucket_name}</td>
@@ -110,7 +110,7 @@ export default function AdminPage() {
           {isGlobalAdmin && (
             <button
               onClick={() => setShowWizard(true)}
-              className="mt-4 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+              className="mt-4 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
             >
               Get Started
             </button>
@@ -181,7 +181,7 @@ function OnboardWizard({ onClose }) {
       <div className="absolute inset-0 bg-black-alpha" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-lg border border-border w-full max-w-md mx-4">
         <div className="px-6 pt-5 pb-3">
-          <p className="text-[11px] font-semibold text-new-bg uppercase tracking-wide mb-1">
+          <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
             Step {step} of 2
           </p>
           <h3 className="text-base font-semibold text-foreground">
@@ -206,7 +206,7 @@ function OnboardWizard({ onClose }) {
                   value={orgKey}
                   onChange={(e) => setOrgKey(e.target.value)}
                   placeholder="stable-external-id"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50 font-mono"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-accent placeholder:text-muted-foreground/50 font-mono"
                   autoFocus
                 />
                 <p className="text-[11px] text-muted-foreground mt-1.5">
@@ -222,7 +222,7 @@ function OnboardWizard({ onClose }) {
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
                   placeholder="Acme Corp"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-accent placeholder:text-muted-foreground/50"
                 />
               </div>
             </div>
@@ -237,7 +237,7 @@ function OnboardWizard({ onClose }) {
                   value={bucketSearch}
                   onChange={(e) => setBucketSearch(e.target.value)}
                   placeholder="Search buckets..."
-                  className="w-full pl-8 pr-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-new-bg placeholder:text-muted-foreground/50"
+                  className="w-full pl-8 pr-3 py-2 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-accent placeholder:text-muted-foreground/50"
                 />
               </div>
               {loadingBuckets ? (
@@ -251,8 +251,8 @@ function OnboardWizard({ onClose }) {
                       key={bucket.name}
                       className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
                         selectedBucket?.name === bucket.name
-                          ? "bg-new-bg-light"
-                          : "hover:bg-accent"
+                          ? "bg-gray-100"
+                          : "hover:bg-gray-100"
                       }`}
                     >
                       <Database className="w-4 h-4 text-custom-gray flex-shrink-0" strokeWidth={1.5} />
@@ -263,7 +263,7 @@ function OnboardWizard({ onClose }) {
                       <input
                         type="radio"
                         name="bucket"
-                        className="accent-new-bg w-3.5 h-3.5 flex-shrink-0"
+                        className="accent w-3.5 h-3.5 flex-shrink-0"
                         checked={selectedBucket?.name === bucket.name}
                         onChange={() => setSelectedBucket(bucket)}
                       />
@@ -299,7 +299,7 @@ function OnboardWizard({ onClose }) {
               (step === 2 && !selectedBucket) ||
               mutation.isLoading
             }
-            className="px-5 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-2"
+            className="px-5 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-2"
           >
             {mutation.isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {step === 1 ? "Next →" : "Confirm"}

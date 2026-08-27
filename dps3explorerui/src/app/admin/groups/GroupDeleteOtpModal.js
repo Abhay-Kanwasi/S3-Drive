@@ -87,14 +87,14 @@ export default function GroupDeleteOtpModal({
           <button
             onClick={onCancel}
             disabled={busy}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            className="p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground"
           >
             <X size={18} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div className="rounded-lg border border-border bg-new-bg/40 p-3 space-y-2 text-sm">
+          <div className="rounded-lg border border-border bg-gray-100 p-3 space-y-2 text-sm">
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">Group</span>
               <span className="font-semibold text-foreground text-right break-all">
@@ -147,8 +147,8 @@ export default function GroupDeleteOtpModal({
           </p>
 
           {needsApproval ? (
-            <div className="space-y-3 p-3 bg-amber-50/80 border border-amber-200/60 rounded-lg">
-              <p className="text-xs text-amber-900">
+            <div className="space-y-3 p-3 bg-status-warning-bg border border-status-warning/30/60 rounded-lg">
+              <p className="text-xs text-status-warning">
                 This group {grantCount > 0 ? `has ${grantCount} folder access mapping${grantCount !== 1 ? "s" : ""}` : "previously had folder access"}
                 . Choose an approver — they will receive an email with{" "}
                 <strong>Review and approve</strong> / <strong>Review and reject</strong>{" "}
@@ -179,7 +179,7 @@ export default function GroupDeleteOtpModal({
                   type="button"
                   onClick={handleSendApproval}
                   disabled={sendLoading || !approverId || approversLoading}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-new-bg disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                   {sendLoading && (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -188,7 +188,7 @@ export default function GroupDeleteOtpModal({
                   Send approval email
                 </button>
               ) : (
-                <div className="rounded-md bg-white/80 border border-amber-200/80 px-3 py-2 text-xs text-amber-950">
+                <div className="rounded-md bg-white/80 border border-status-warning/30/80 px-3 py-2 text-xs text-status-warning">
                   <p className="font-medium">Approval email sent</p>
                   <p className="mt-1">
                     Waiting for{" "}
@@ -297,8 +297,8 @@ function ApproverSearch({ approvers, approverId, onSelect, disabled, label }) {
                     setQuery("");
                     setOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/50 flex items-center justify-between ${
-                    String(a.id) === String(approverId) ? "bg-accent/30" : ""
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100/50 flex items-center justify-between ${
+                    String(a.id) === String(approverId) ? "bg-accent-subtle" : ""
                   }`}
                 >
                   <span>

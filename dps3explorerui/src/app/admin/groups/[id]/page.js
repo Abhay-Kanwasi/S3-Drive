@@ -89,7 +89,7 @@ export default function GroupDetailPage() {
               <Icon className="w-4 h-4" strokeWidth={1.5} />
               {tab.label}
               {tab.count !== undefined && (
-                <span className="text-xs bg-new-bg rounded-full px-1.5 py-0.5">{tab.count}</span>
+                <span className="text-xs bg-gray-100 rounded-full px-1.5 py-0.5">{tab.count}</span>
               )}
             </button>
           );
@@ -140,7 +140,7 @@ function MembersTab({ group, groupId, showAddMembers, setShowAddMembers }) {
         <p className="text-sm text-muted-foreground">{group.members.length} members</p>
         <button
           onClick={() => setShowAddMembers(true)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-new-button-bg rounded-lg text-xs font-semibold text-foreground hover-button"
+          className="flex items-center gap-2 px-3 py-1.5 bg-accent rounded-lg text-xs font-semibold text-white hover-button"
         >
           <Plus className="w-3.5 h-3.5" strokeWidth={2} />
           Add Members
@@ -151,7 +151,7 @@ function MembersTab({ group, groupId, showAddMembers, setShowAddMembers }) {
         <div className="rounded-lg overflow-hidden border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-new-table-header-bg">
+              <tr className="bg-gray-50">
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">User</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Email</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Added</th>
@@ -160,7 +160,7 @@ function MembersTab({ group, groupId, showAddMembers, setShowAddMembers }) {
             </thead>
             <tbody className="bg-white divide-y divide-border">
               {group.members.map((m) => (
-                <tr key={m.id} className="hover:bg-new-bg-light/50 transition-colors">
+                <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{m.user_name || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{m.email || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -240,7 +240,7 @@ function AddMembersModal({ groupId, orgId, existingIds, onClose }) {
           <button
             onClick={() => mutation.mutate()}
             disabled={selected.length === 0 || mutation.isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-50"
           >
             {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             Add {selected.length > 0 ? `(${selected.length})` : ""}
@@ -265,7 +265,7 @@ function GrantsTab({ group, groupId, showFolderMapping, setShowFolderMapping }) 
         <p className="text-sm text-muted-foreground">{group.grants.length} folder grants</p>
         <button
           onClick={() => setShowFolderMapping(true)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-new-button-bg rounded-lg text-xs font-semibold text-foreground hover-button"
+          className="flex items-center gap-2 px-3 py-1.5 bg-accent rounded-lg text-xs font-semibold text-white hover-button"
         >
           <Plus className="w-3.5 h-3.5" strokeWidth={2} />
           Map Folder
@@ -276,7 +276,7 @@ function GrantsTab({ group, groupId, showFolderMapping, setShowFolderMapping }) 
         <div className="rounded-lg overflow-hidden border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-new-table-header-bg">
+              <tr className="bg-gray-50">
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Folder Path</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Access</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Mapped</th>
@@ -285,7 +285,7 @@ function GrantsTab({ group, groupId, showFolderMapping, setShowFolderMapping }) 
             </thead>
             <tbody className="bg-white divide-y divide-border">
               {group.grants.map((g) => (
-                <tr key={g.id} className="hover:bg-new-bg-light/50 transition-colors">
+                <tr key={g.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-foreground">{g.prefix}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center text-xs font-medium rounded-full px-2 py-0.5 ${
@@ -373,7 +373,7 @@ function SettingsTab({ group, groupId, showRename, setShowRename, showDelete, se
               <button
                 onClick={() => renameMut.mutate(newName.trim())}
                 disabled={renameMut.isLoading || !newName.trim()}
-                className="px-3 py-1.5 bg-new-button-bg rounded-lg text-xs font-semibold text-foreground hover-button disabled:opacity-50"
+                className="px-3 py-1.5 bg-accent rounded-lg text-xs font-semibold text-white hover-button disabled:opacity-50"
               >
                 Save
               </button>

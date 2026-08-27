@@ -306,7 +306,7 @@ export default function Upload() {
             {!hasActiveUploads && (
               <button
                 onClick={resetPanel}
-                className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors"
               >
                 Close
               </button>
@@ -320,7 +320,7 @@ export default function Upload() {
         <div className="bg-card z-10 h-96 w-2/5 max-w-lg rounded-lg border border-border shadow-lg">
           <div className="flex flex-row justify-between pl-4 py-5">
             {failedCount > 0 ? (
-              <div className="inline-flex gap-x-3 font-normal text-amber-600 text-xl">
+              <div className="inline-flex gap-x-3 font-normal text-status-warning text-xl">
                 <Image src={UploadIcon} alt="Upload icon" />
                 {headerText}
               </div>
@@ -344,7 +344,7 @@ export default function Upload() {
                 }
                 resetPanel();
               }}
-              className="mr-3 px-2 rounded-md font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-150"
+              className="mr-3 px-2 rounded-md font-semibold text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors duration-150"
               title={hasActiveUploads ? "Minimize uploads" : "Close"}
             >
               <Image width={25} src={MinIcon} alt="Minimize" />
@@ -392,7 +392,7 @@ export default function Upload() {
                             ? "bg-custom-green"
                             : status === "failed" || status === "cancelled"
                               ? "bg-destructive"
-                              : "bg-new-bg"
+                              : "bg-accent"
                         }`}
                         style={{ width: `${fileProgress}%` }}
                       ></div>

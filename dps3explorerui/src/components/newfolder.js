@@ -113,7 +113,7 @@ export default function NewFolder({ children }) {
                 setError("");
                 setDisabled(true);
               }}
-              className="px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg border border-border hover:bg-accent transition-colors duration-150"
+              className="px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg border border-border hover:bg-gray-100 transition-colors duration-150"
             >
               Cancel
             </button>
@@ -124,7 +124,7 @@ export default function NewFolder({ children }) {
                   createFolderTrigger(`${foldername}/`);
                 }
               }}
-              className="px-4 py-2 text-sm font-medium text-foreground bg-new-button-bg rounded-lg disabled:bg-muted disabled:text-muted-foreground hover:bg-new-bg transition-colors duration-150"
+              className="px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg disabled:bg-muted disabled:text-muted-foreground hover:bg-accent-hover transition-colors duration-150"
             >
               Create
             </button>

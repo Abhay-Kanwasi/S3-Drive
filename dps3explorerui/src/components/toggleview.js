@@ -5,13 +5,13 @@ import { ApplicationContext } from "@/services/ContextProvider";
 export default function ToggleView({ children }) {
   var { card, setCard } = useContext(ApplicationContext);
   return (
-    <div className="inline-flex text-foreground border border-border rounded-lg bg-secondary">
+    <div className="inline-flex text-gray-500 border border-gray-200 rounded-lg bg-gray-100 p-0.5">
       <button
         onClick={() => {
           setCard((card = true));
         }}
         className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors duration-150 ${
-          card ? "bg-new-button-bg" : "hover:bg-accent"
+          card ? "bg-white shadow-sm text-gray-900" : "hover:bg-gray-50"
         }`}
       >
         <svg fill="currentColor" height="15" width="15" viewBox="0 0 512 512">
@@ -23,7 +23,7 @@ export default function ToggleView({ children }) {
           setCard((card = false));
         }}
         className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors duration-150 ${
-          card ? "hover:bg-accent" : "bg-new-button-bg"
+          card ? "hover:bg-gray-50" : "bg-white shadow-sm text-gray-900"
         }`}
       >
         <svg

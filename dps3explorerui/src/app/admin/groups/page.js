@@ -66,7 +66,7 @@ export default function GroupsPage() {
           <button
             onClick={() => setShowWizard(true)}
             disabled={!isGlobalAdmin && !activeOrgId}
-            className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-50"
           >
             <Plus className="w-4 h-4" strokeWidth={2} />
             Create Group
@@ -82,7 +82,7 @@ export default function GroupsPage() {
         <div className="rounded-lg overflow-hidden border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-new-table-header-bg">
+              <tr className="bg-gray-50">
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Group Name</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Members</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground text-xs uppercase tracking-wide">Folder Grants</th>
@@ -94,12 +94,12 @@ export default function GroupsPage() {
               {groups.map((g) => (
                 <tr
                   key={g.id}
-                  className="hover:bg-new-bg-light/50 transition-colors cursor-pointer"
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => router.push(`/admin/groups/${g.id}`)}
                 >
                   <td className="px-4 py-3 font-medium text-foreground">{g.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-new-bg rounded-full px-2 py-0.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5">
                       <Users className="w-3 h-3" strokeWidth={1.5} />
                       {g.member_count}
                     </span>
@@ -131,7 +131,7 @@ export default function GroupsPage() {
           <button
             onClick={() => setShowWizard(true)}
             disabled={!isGlobalAdmin && !activeOrgId}
-            className="mt-4 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-50"
+            className="mt-4 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-50"
           >
             Create First Group
           </button>
@@ -269,7 +269,7 @@ function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
         <div className="px-6 py-4 border-b border-border">
-          <p className="text-[11px] font-semibold text-new-bg uppercase tracking-wide mb-1">
+          <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">
             Step {stepNumber} of {totalSteps}
           </p>
           <div className="flex items-center justify-between">
@@ -313,12 +313,12 @@ function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated
                       <button
                         key={o.id}
                         onClick={() => setWizardOrgId(o.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-new-bg-light/50 transition-colors ${
-                          isSelected ? "bg-new-bg-light/80" : ""
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                          isSelected ? "bg-accent-subtle" : ""
                         }`}
                       >
                         <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                          isSelected ? "bg-new-button-bg border-new-button-bg" : "border-border"
+                          isSelected ? "bg-accent border-accent" : "border-border"
                         }`}>
                           {isSelected && <Check className="w-3 h-3 text-foreground" strokeWidth={2} />}
                         </div>
@@ -356,7 +356,7 @@ function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated
                 Use any clear name — no prefix required.
               </p>
               {isGlobalAdmin && selectedOrgName && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground bg-new-bg rounded-lg px-3 py-2">
+                <div className="mt-3 flex items-center gap-2 text-xs text-gray-600 bg-gray-100 rounded-lg px-3 py-2">
                   <Building2 className="w-3.5 h-3.5" strokeWidth={1.5} />
                   Organization: <span className="font-medium text-foreground">{selectedOrgName}</span>
                 </div>
@@ -388,7 +388,7 @@ function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated
             <button
               onClick={handleCreate}
               disabled={mutation.isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button disabled:opacity-50"
             >
               {mutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               Create Group {selectedUsers.length > 0 && `(${selectedUsers.length} members)`}
@@ -396,7 +396,7 @@ function CreateGroupWizard({ isGlobalAdmin, fixedOrgId, orgs, onClose, onCreated
           ) : (
             <button
               onClick={handleNext}
-              className="px-4 py-2 bg-new-button-bg rounded-lg text-sm font-semibold text-foreground hover-button"
+              className="px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
             >
               Next
             </button>

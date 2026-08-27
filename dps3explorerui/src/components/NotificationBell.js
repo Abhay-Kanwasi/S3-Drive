@@ -70,7 +70,7 @@ export default function NotificationBell() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-md hover:bg-accent transition-colors"
+        className="relative p-2 rounded-md hover:bg-gray-100 transition-colors"
         aria-label="Notifications"
       >
         <Bell size={20} className="text-foreground" />
@@ -122,7 +122,7 @@ export default function NotificationBell() {
                   </div>
                   <button
                     onClick={() => handleDismiss(n.id)}
-                    className="shrink-0 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                    className="shrink-0 p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground"
                     title="Dismiss"
                   >
                     <X size={14} />

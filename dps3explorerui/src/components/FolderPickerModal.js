@@ -90,7 +90,7 @@ export default function FolderPickerModal({ open, onClose, onSelect, title = "Se
               {breadcrumb.length > 0 && (
                 <div
                   onClick={navigateBack}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent cursor-pointer text-sm text-muted-foreground"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer text-sm text-muted-foreground"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -103,9 +103,9 @@ export default function FolderPickerModal({ open, onClose, onSelect, title = "Se
                 <div
                   key={f.key}
                   onClick={() => navigateInto(f)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent cursor-pointer text-sm text-foreground"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer text-sm text-foreground"
                 >
-                  <Folder className="w-4 h-4 text-amber-500" />
+                  <Folder className="w-4 h-4 text-status-warning" />
                   <span className="truncate">{f.name}</span>
                   <ChevronRight className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
                 </div>
@@ -128,13 +128,13 @@ export default function FolderPickerModal({ open, onClose, onSelect, title = "Se
               <div className="flex gap-2">
                 <button
                   onClick={onClose}
-                  className="px-3 py-1.5 text-sm rounded-md border border-border bg-secondary text-foreground hover:bg-accent"
+                  className="px-3 py-1.5 text-sm rounded-md border border-border bg-secondary text-foreground hover:bg-gray-100"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSelect}
-                  className="px-3 py-1.5 text-sm rounded-md bg-new-button-bg text-foreground hover:opacity-90"
+                  className="px-3 py-1.5 text-sm rounded-md bg-accent text-white hover:opacity-90"
                 >
                   Select
                 </button>
@@ -144,7 +144,7 @@ export default function FolderPickerModal({ open, onClose, onSelect, title = "Se
         </div>
 
         <div className="px-5 py-2 border-t border-border">
-          <p className="text-[11px] text-amber-600 flex items-center gap-1.5">
+          <p className="text-[11px] text-status-warning flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3 shrink-0" />
             {processing
               ? "Operation in progress. Do not close or navigate away — large files may take several minutes."
