@@ -1,0 +1,33 @@
+# Development override: mount source code and run both application watchers.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  api:
+    volumes:
+      - ./dps3explorerapi:/var/www/python-app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  ui:
+    image: node:20-bookworm-slim
+    build: !reset null
+    working_dir: /app
+    environment:
+      NEXT_PUBLIC_HOSTNAME: ${NEXT_PUBLIC_HOSTNAME:-http://localhost:8000/api/v2}
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./dps3explorerui:/app
+      - ui_node_modules:/app/node_modules
+    command: ["sh", "-c", "npm install && npm run dev -- --hostname 0.0.0.0 --port 3000"]
+    ports: !override
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/explorer/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  ui_node_modules:

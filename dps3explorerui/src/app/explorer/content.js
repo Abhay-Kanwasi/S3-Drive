@@ -4,17 +4,21 @@ import Upload from "@/components/upload";
 import View from "@/components/view";
 import ToggleView from "@/components/toggleview";
 import NotificationBell from "@/components/NotificationBell";
+import SearchBar from "@/components/SearchBar";
+import UserMenu from "@/components/UserMenu";
 import { useContext } from "react";
 import { ApplicationContext } from "@/services/ContextProvider";
 
 export default function Content({ children }) {
-  var { card } = useContext(ApplicationContext);
+  const { card, username, userid } = useContext(ApplicationContext);
   return (
     <div className="bg-background flex-1 h-full overflow-y-auto pt-6 px-5">
-      <div className="flex flex-row justify-between items-center border-b border-border pb-4 mr-4">
+      <div className="flex flex-wrap gap-3 justify-between items-center border-b border-border pb-4 mr-4">
         <Ribbon />
         <div className="flex items-center gap-2">
+          <SearchBar scope="org" disabled />
           <NotificationBell />
+          <UserMenu user={{ name: username, email: userid ? `User ${userid}` : "" }} />
           <ToggleView />
         </div>
       </div>

@@ -8,3 +8,13 @@ You can set up S3 Drive in either of the following ways:
 * **Use the default S3 configuration** provided by S3 Drive.
 
 It provides a simple, familiar file-management experience while leveraging S3 for scalable and reliable storage.
+
+## Development with Docker Compose
+
+Run the stack with live reload for both the API and UI:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+API changes reload through Uvicorn, and UI changes reload through Next.js. Open the UI at `http://localhost:3000`.
