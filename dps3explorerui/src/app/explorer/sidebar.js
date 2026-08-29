@@ -171,7 +171,7 @@ export default function Sidebar({ children }) {
         <Trash />
         {isAdmin && (
           <button
-            onClick={() => router.push("/admin")}
+            onClick={() => router.push(currentOrg?.id ? `/org/${currentOrg.id}/admin` : "/admin")}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Settings className="w-4 h-4" strokeWidth={1.5} />
