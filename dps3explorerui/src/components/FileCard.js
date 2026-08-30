@@ -1,23 +1,64 @@
 "use client";
 
-import { File, Folder } from "lucide-react";
+import { File, Folder, Star } from "lucide-react";
 import ShieldBadge from "./ShieldBadge";
+import { FileSpreadsheet, FileJson, FileArchive, FileText, FileImage } from "lucide-react";
+import Image from "next/image";
+import FolderIcon from "../app/assets/folder.svg";
 
-export default function FileCard({ item, onOpen, onSelect }) {
+const ICON_MAP = {
+  csv: FileSpreadsheet, xlsx: FileSpreadsheet, xls: FileSpreadsheet,
+  parquet: FileSpreadsheet, orc: FileSpreadsheet,
+  json: FileJson,
+  zip: FileArchive, gz: FileArchive,
+  pdf: FileText, docx: FileText, txt: FileText,
+  png: FileImage, jpg: FileImage, jpeg: FileImage, gif: FileImage,
+};
+
+function FileTypeIcon({ filename, colorMap }) {
+  const ext = filename?.split(".").pop()?.toLowerCase() || "";
+  const IconComponent = ICON_MAP[ext] || File;
+  const color = colorMap?.[`.${ext}`] || "#9ca3af";
+  return <IconComponent className="w-8 h-8" style={{ color }} strokeWidth={1.2} />;
+}
+
+export default function FileCard({ item, onOpen, onSelect, onContextMenu, colorMap, starred, onStarToggle }) {
   const isFolder = item.type === "folder";
+  const hasCustomPerms = Boolean(item.hasCustomPermissions || (item.created_by_role && item.created_by_role === "admin"));
+
   return (
-    <button
-      type="button"
-      onDoubleClick={() => onOpen?.(item)}
-      onClick={() => onSelect?.(item)}
-      className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-4 text-center hover:border-accent hover:shadow-sm"
+    <div
+      className="mt-4 mr-6 text-foreground relative"
+      onDoubleClick={(e) => { if (isFolder) { e.preventDefault(); onOpen?.(item); } }}
+      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
-      {isFolder ? <Folder className="h-9 w-9 text-accent" /> : <File className="h-9 w-9 text-muted-foreground" />}
-      <span className="flex max-w-full items-center gap-1">
-        <span className="max-w-32 truncate text-sm font-medium text-foreground">{item.name}</span>
-        <ShieldBadge hasCustomPermissions={Boolean(item.hasCustomPermissions || item.created_by_role)} />
-      </span>
-      <span className="text-xs text-muted-foreground">{isFolder ? "Folder" : item.size || "--"}</span>
-    </button>
+      <div
+        onClick={() => onSelect?.(item)}
+        className="flex flex-col items-center bg-card select-none cursor-pointer border border-border w-40 rounded-lg px-6 py-4 card-shadow hover-button relative"
+      >
+        {hasCustomPerms && (
+          <span className="absolute top-2 right-2">
+            <ShieldBadge hasCustomPermissions />
+          </span>
+        )}
+        {onStarToggle && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onStarToggle(item); }}
+            className="absolute top-2 left-2 p-0.5 rounded hover:bg-gray-100"
+            title={starred ? "Unstar" : "Star"}
+          >
+            <Star className={`w-3.5 h-3.5 ${starred ? "fill-status-warning text-status-warning" : "text-muted-foreground"}`} strokeWidth={1.5} />
+          </button>
+        )}
+        <div className="h-14 flex items-center justify-center">
+          {isFolder
+            ? <Image width={32} height={32} src={FolderIcon} alt="Folder" />
+            : <FileTypeIcon filename={item.name} colorMap={colorMap} />}
+        </div>
+        <p className="truncate w-32 text-center text-sm">{item.name}</p>
+        <p className="text-center text-sm text-muted-foreground">{isFolder ? "Folder" : item.size || "--"}</p>
+      </div>
+    </div>
   );
 }

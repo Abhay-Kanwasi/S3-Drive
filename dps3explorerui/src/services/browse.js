@@ -3,6 +3,15 @@ import { getAuthHeaders } from "@/services/auth";
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const browseHostname = `${API_HOSTNAME}/explorer/browse`;
 
+/** Get storage usage for an org. */
+export const getOrgStorage = async (orgId) => {
+  const response = await fetch(`${browseHostname}/orgs/${orgId}/storage`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch storage");
+  return response.json();
+};
+
 export const browseFolders = async (orgId, prefix = "") => {
   const response = await fetch(`${browseHostname}/browse`, {
     method: "POST",

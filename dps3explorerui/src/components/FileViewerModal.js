@@ -16,6 +16,7 @@ import {
   FileJson,
 } from "lucide-react";
 import { getFilePreview } from "@/services/server";
+import { addRecentFile } from "@/services/localStorage";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
 
@@ -74,6 +75,19 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
       setLoading(false);
     }
   }, [fileKey, basePath, activeSheet]);
+
+  // Track file view in recent files
+  useEffect(() => {
+    if (fileKey && fileName) {
+      addRecentFile({
+        key: fileKey,
+        name: fileName,
+        orgId: null, // Will be set when org is known
+        folderId: null, // Will be set when folder is known
+        timestamp: Date.now(),
+      });
+    }
+  }, [fileKey, fileName]);
 
   // Initial load
   useEffect(() => {

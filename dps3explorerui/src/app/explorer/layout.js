@@ -1,6 +1,7 @@
 "use client";
 import { useContext, useEffect, useState } from "react";
 import { useQueryClient, useQuery } from "react-query";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Sidebar from "./sidebar";
 import Content from "./content";
@@ -121,6 +122,7 @@ function DevUserBar({ currentUserId, username }) {
 
 export default function Layout({ children }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [dragging, setDragging] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -186,10 +188,10 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     if (adminMe) {
-      setIsAdmin(Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin));
+      const isAdminUser = Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin);
+      setIsAdmin(isAdminUser);
       if (adminMe.user_name) setUsername(adminMe.user_name);
     } else if (access && !accessError) {
-      // Non-admin: /admin/me will 403; treat as non-admin
       if (access.is_admin != null) setIsAdmin(Boolean(access.is_admin));
     }
   }, [adminMe, access, accessError]);
