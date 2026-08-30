@@ -140,10 +140,10 @@ function AdminLayoutInner({ children, skipAccessCheck = false }) {
             contact your organization administrator.
           </p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/explorer")}
             className="mt-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
           >
-            Back to home
+            Back to Explorer
           </button>
         </div>
       );
@@ -158,7 +158,7 @@ function AdminLayoutInner({ children, skipAccessCheck = false }) {
             You do not have permission to access the admin panel.
           </p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/explorer")}
             className="mt-2 px-4 py-2 bg-accent rounded-lg text-sm font-semibold text-white hover-button"
           >
             Back to Explorer
@@ -272,7 +272,7 @@ function AdminLayoutInner({ children, skipAccessCheck = false }) {
             </div>
           </div>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/explorer")}
             className="mt-2 w-full text-left text-[11px] text-muted-foreground hover:text-foreground transition-colors"
           >
             ← Back to Explorer

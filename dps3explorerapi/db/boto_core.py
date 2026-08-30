@@ -112,7 +112,7 @@ def get_metadata(file_Key, tag, bucket_name):
     response = dict()
     try:
         if tag == "trash":
-            metadata = client.get_object(Bucket="explorer-trash", Key=file_Key)
+            metadata = client.get_object(Bucket=settings.TRASH_BUCKET, Key=file_Key)
         elif tag == "explorer":
             metadata = client.get_object(Bucket=bucket_name, Key=file_Key)
         response["author"] = metadata["Metadata"]["author"].title()
@@ -158,7 +158,7 @@ class TrashBOTO:
     trash_session = None
     trash_s3 = None
     trash_client = None
-    TRASH_BUCKET = "explorer-trash"
+    TRASH_BUCKET = settings.TRASH_BUCKET
 
     def __init__(self) -> None:
         self.trash_s3 = get_s3_client()

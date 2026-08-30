@@ -145,6 +145,30 @@ async def list_accessible_orgs(
     return _accessible_orgs_for_user(user, db)
 
 
+@router.get("/orgs/{org_id}/storage")
+async def get_org_storage(
+    org_id: int,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return storage quota and consumed bytes for an org."""
+    org = _get_org_for_user(org_id, user, db)
+    s3 = get_s3_client(region_name=org.region)
+    used_bytes = 0
+    try:
+        paginator = s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=org.bucket_name):
+            for obj in page.get("Contents", []):
+                used_bytes += obj["Size"]
+    except Exception:
+        pass
+    return {
+        "org_id": org.id,
+        "used_bytes": used_bytes,
+        "total_bytes": org.max_upload_size_bytes,
+    }
+
+
 # ----------------------------- Schemas ----------------------------------
 
 class BrowseRequest(BaseModel):
