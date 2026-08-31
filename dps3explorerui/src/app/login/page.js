@@ -17,7 +17,7 @@ export default function LoginPage() {
       return;
     }
     setSelectedUserId(id);
-    router.push("/explorer");
+    router.push("/");
   };
 
   return (
