@@ -6,13 +6,65 @@ import ToggleView from "@/components/toggleview";
 import NotificationBell from "@/components/NotificationBell";
 import SearchBar from "@/components/SearchBar";
 import UserMenu from "@/components/UserMenu";
-import { useContext } from "react";
+import { useContext, useRef, useState, useEffect } from "react";
 import { ApplicationContext } from "@/services/ContextProvider";
-import { useMutation } from "react-query";
+import { useMutation, useQuery } from "react-query";
 import { loadContents } from "@/services/Queries";
+import { getUploadConstraints } from "@/services/server";
+import { Plus, FilePlus, FolderPlus } from "lucide-react";
 
 export default function Content({ children }) {
-  const { card, keys, setKeys, setPath, basePath, currentOrg, username, userid, isAdmin } = useContext(ApplicationContext);
+  const { card, keys, setKeys, setPath, basePath, currentOrg, username, userid, isAdmin, path, uploadsafe, setUploadsafe, setProgress, files, setFiles, contextnew, setContextnew, setContextfolder, setContexterror, setContexterrormodal } = useContext(ApplicationContext);
+
+  const [toggle, setToggle] = useState(false);
+  const newref = useRef(null);
+  const dialogref = useRef(null);
+
+  const canCreateFolder = !currentOrg || isAdmin || (path && path !== basePath);
+
+  const { data: constraints } = useQuery("upload-constraints", getUploadConstraints, {
+    staleTime: 5 * 60 * 1000, retry: 1,
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (newref.current && !newref.current.contains(e.target)) setToggle(false);
+    };
+    document.addEventListener("click", handleClickOutside, true);
+    return () => document.removeEventListener("click", handleClickOutside, true);
+  }, []);
+
+  const handleUpload = async (e) => {
+    if (!path) {
+      setContexterrormodal(true);
+      setContexterror("Please select a bucket first to upload files(s).");
+      return;
+    }
+    const allowedExtensions = constraints?.allowed_extensions;
+    if (!allowedExtensions) {
+      setContexterrormodal(true);
+      setContexterror("Unable to verify allowed file types. Please try again.");
+      return;
+    }
+    const _files = [];
+    let safeObj = {};
+    for (let _file of e.target.files) {
+      const nameLower = _file.name.toLowerCase();
+      const isAllowed = allowedExtensions.some((ext) => nameLower.endsWith(ext));
+      if (isAllowed) {
+        _files.push({ data: _file, completed: false, progress: 0 });
+        setProgress((prev) => ({ ...prev, [_file.name]: 0 }));
+        safeObj = { ...safeObj, [_file.name]: { locked: false, progress: 0, data: _file } };
+      } else {
+        setContexterrormodal(true);
+        setContexterror(`File type not supported. Allowed: ${allowedExtensions.join(", ")}`);
+      }
+    }
+    if (_files.length) {
+      setUploadsafe({ ...uploadsafe, ...safeObj });
+      setFiles([..._files]);
+    }
+  };
 
   const folderMutation = useMutation({
     mutationFn: (p) => loadContents(p, basePath, currentOrg?.id),
@@ -67,6 +119,65 @@ export default function Content({ children }) {
         <View />
       </div>
       <Upload />
+
+      {/* Floating New button */}
+      <div
+        ref={newref}
+        onClick={() => setToggle((v) => !v)}
+        className="fixed bottom-8 right-8 z-50 bg-accent text-white rounded-full shadow-elevated cursor-pointer hover:-translate-y-0.5 hover:bg-accent-hover transition-all duration-200 ease-out"
+      >
+        <div className="flex items-center px-5 py-3 gap-2">
+          <Plus strokeWidth={2} className={`h-5 w-5 transition-transform duration-200 ${toggle ? "rotate-45" : ""}`} />
+          <span className="font-medium text-sm">New</span>
+        </div>
+
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute bottom-full right-0 mb-2 w-48 border border-gray-200 bg-white rounded-xl shadow-elevated p-1 text-foreground origin-bottom-right transition-all duration-200 ease-out ${toggle ? "opacity-100 scale-100 translate-y-0" : "pointer-events-none opacity-0 scale-95 translate-y-2"}`}
+        >
+          <p
+            onClick={() => {
+              if (!isAdmin && (!path || path.length === 0)) {
+                setContexterrormodal(true);
+                setContexterror("Please navigate into a folder to upload files.");
+              } else {
+                dialogref.current.click();
+              }
+            }}
+            className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm"
+          >
+            <FilePlus className="mr-3 w-4 h-4" strokeWidth={1.5} />
+            File Upload
+            <input
+              type="file"
+              multiple
+              ref={dialogref}
+              className="hidden"
+              accept=".csv, .txt, .xlsx, .xlsb, .xlsm, .tsv"
+              onClick={(e) => { e.target.value = null; }}
+              onChange={handleUpload}
+            />
+          </p>
+          {canCreateFolder && (
+            <div
+              onClick={() => {
+                if (!isAdmin && (!path || path.length === 0)) {
+                  setContexterrormodal(true);
+                  setContexterror("Please navigate into a folder to create subfolders.");
+                } else {
+                  setToggle(false);
+                  setContextnew(true);
+                  setContextfolder("");
+                }
+              }}
+              className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm"
+            >
+              <FolderPlus className="mr-3 w-4 h-4" strokeWidth={1.5} />
+              New folder
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
