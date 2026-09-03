@@ -5,8 +5,9 @@ import SearchBar from "@/components/SearchBar";
 import NotificationBell from "@/components/NotificationBell";
 import UserMenu from "@/components/UserMenu";
 
-export default function TopBar({ user, onSearch, hideSearch = false }) {
+export default function TopBar({ user, onSearch, hideSearch = false, onOpenNotifications }) {
   const router = useRouter();
+  const openNotifRef = typeof onOpenNotifications === "object" ? onOpenNotifications : null;
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -28,7 +29,7 @@ export default function TopBar({ user, onSearch, hideSearch = false }) {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          <NotificationBell />
+          <NotificationBell onOpenRequest={openNotifRef} />
           <UserMenu user={user} />
         </div>
       </div>

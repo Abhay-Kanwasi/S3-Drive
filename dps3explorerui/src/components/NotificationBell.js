@@ -9,11 +9,17 @@ import {
   dismissNotification,
 } from "@/services/notifications";
 
-export default function NotificationBell() {
+export default function NotificationBell({ onOpenRequest }) {
   const { userid } = useContext(ApplicationContext);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (onOpenRequest) {
+      onOpenRequest.current = () => setOpen(true);
+    }
+  }, [onOpenRequest]);
 
   const queryKey = ["notifications", userid];
 
