@@ -20,8 +20,8 @@ class Settings(BaseSettings):
 
     POSTGRES_DATABASE_URI: str
     BUCKET: str
-    TRASH_BUCKET: str = "explorer-trash"
-    AUDIT_BUCKET: str = "explorer-trash"
+    TRASH_BUCKET: str = "s3explorer"
+    AUDIT_BUCKET: str = "s3explorer"
     AUDIT_HOT_DAYS: int = 30
     AUDIT_TOTAL_DAYS: int = 365
 
