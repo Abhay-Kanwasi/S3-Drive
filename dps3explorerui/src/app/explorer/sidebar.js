@@ -186,12 +186,16 @@ export default function Sidebar() {
     <div className="bg-sidebar flex-shrink-0 w-64 h-full flex flex-col z-10 border-r border-sidebar-border">
       <div className="flex flex-col px-4 mx-2 pt-6 flex-1 overflow-y-auto">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 pb-4">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="flex items-center gap-3 px-4 pb-4 hover:opacity-80 transition-opacity"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle text-accent">
             <HardDrive className="h-5 w-5" strokeWidth={1.8} />
           </div>
           <p className="text-base font-semibold tracking-tight text-gray-900">S3 Drive</p>
-        </div>
+        </button>
 
         {/* Org Switcher */}
         <div className="px-1 pb-3 border-b border-sidebar-border">

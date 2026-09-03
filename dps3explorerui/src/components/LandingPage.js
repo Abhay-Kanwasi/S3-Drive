@@ -3,14 +3,18 @@
 import { useMemo, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "react-query";
-import { ArrowRight, HardDrive, Users, Clock3, FileText } from "lucide-react";
+import {
+  ArrowRight, ChevronDown, ChevronRight,
+  HardDrive, Users, Clock3, FileText, Folder, Settings,
+} from "lucide-react";
 import TopBar from "@/components/TopBar";
 import EmptyState from "@/components/EmptyState";
-import { listAccessibleOrgs } from "@/services/browse";
-import { getOrganizations } from "@/services/admin";
+import { listAccessibleOrgs, browseFolders } from "@/services/browse";
+import { getOrganizations, getAdminMe } from "@/services/admin";
 import { getSelectedUserId } from "@/services/auth";
+import { getExplorerAccess } from "@/services/access";
 import { ApplicationContext } from "@/services/ContextProvider";
-import { getOrgStats, setOrgStats, getRecentFiles } from "@/services/localStorage";
+import { getOrgStats, getRecentFiles } from "@/services/localStorage";
 
 function getTimeOfDay() {
   const hour = new Date().getHours();
@@ -19,12 +23,120 @@ function getTimeOfDay() {
   return "evening";
 }
 
+// Folder list lazy-loaded when an org card is expanded
+function OrgFolders({ orgId, router }) {
+  const { data, isLoading } = useQuery(
+    ["landing-folders", orgId],
+    () => browseFolders(orgId, ""),
+    { staleTime: 60_000, retry: false }
+  );
+
+  if (isLoading) {
+    return <p className="px-4 py-2 text-xs text-muted-foreground">Loading folders…</p>;
+  }
+
+  const folders = data?.folders ?? [];
+  if (folders.length === 0) {
+    return <p className="px-4 py-2 text-xs text-muted-foreground">No folders found.</p>;
+  }
+
+  return (
+    <div className="border-t border-border divide-y divide-border">
+      {folders.map((f) => (
+        <button
+          key={f.key}
+          type="button"
+          onClick={() => router.push(`/org/${orgId}?path=${encodeURIComponent(f.key)}`)}
+          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition"
+        >
+          <Folder className="h-4 w-4 shrink-0 text-status-warning" strokeWidth={1.5} />
+          <span className="truncate text-sm text-foreground">{f.name}</span>
+          <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Expandable org card — folders lazy-load on expand
+function OrgCard({ org, router }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between p-4 text-left transition hover:border-accent"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-sm font-semibold text-accent">
+            {org.initials}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-base font-medium text-foreground">{org.name}</p>
+            <p className="truncate text-sm text-muted-foreground capitalize">
+              {org.role || "Member"} · {org.members} members · {org.fileCount} files
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); router.push(`/org/${org.id}`); }}
+            className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-gray-100 transition"
+          >
+            Open
+          </button>
+          {expanded
+            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      </button>
+
+      {expanded && <OrgFolders orgId={org.id} router={router} />}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const router = useRouter();
-  const selectedUserId = getSelectedUserId() || 1;
-  const { username, isAdmin } = useContext(ApplicationContext);
+  const selectedUserId = getSelectedUserId();
+  const { username: ctxUsername, isAdmin: ctxIsAdmin, setUsername, setIsAdmin } = useContext(ApplicationContext);
   const [orgStats, setOrgStatsLocal] = useState({});
   const [recentFiles, setRecentFiles] = useState([]);
+
+  // Run auth queries directly so the landing page is fully populated on first
+  // load, without depending on the explorer layout having run first.
+  const { data: access } = useQuery(
+    ["explorer-access", selectedUserId],
+    getExplorerAccess,
+    { enabled: Boolean(selectedUserId), retry: false, staleTime: 60 * 1000 }
+  );
+
+  const { data: adminMe } = useQuery(
+    ["admin-me", selectedUserId],
+    getAdminMe,
+    { enabled: Boolean(selectedUserId) && access?.can_access === true, retry: false, staleTime: 5 * 60 * 1000 }
+  );
+
+  // Sync resolved identity into context so other parts of the app benefit too
+  useEffect(() => {
+    if (adminMe?.user_name) setUsername(adminMe.user_name);
+    else if (access?.user_name) setUsername(access.user_name);
+  }, [adminMe, access]);
+
+  useEffect(() => {
+    if (adminMe) {
+      setIsAdmin(Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin));
+    }
+  }, [adminMe]);
+
+  // Use locally resolved values; fall back to context if queries haven't settled yet
+  const resolvedIsAdmin = adminMe
+    ? Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin)
+    : ctxIsAdmin;
+  const resolvedUsername = adminMe?.user_name || access?.user_name || ctxUsername;
 
   const { data: orgsData, isLoading } = useQuery(
     ["landing-orgs", selectedUserId],
@@ -33,7 +145,7 @@ export default function LandingPage() {
         const accessible = await listAccessibleOrgs();
         if (Array.isArray(accessible) && accessible.length) return accessible;
       } catch {}
-      if (isAdmin) {
+      if (resolvedIsAdmin) {
         try {
           const adminOrgs = await getOrganizations();
           return Array.isArray(adminOrgs) ? adminOrgs : [];
@@ -41,10 +153,9 @@ export default function LandingPage() {
       }
       return [];
     },
-    { retry: false, staleTime: 60_000 }
+    { retry: false, staleTime: 60_000, enabled: Boolean(selectedUserId) }
   );
 
-  // Load org stats from localStorage on mount
   useEffect(() => {
     if (Array.isArray(orgsData)) {
       const stats = {};
@@ -56,7 +167,6 @@ export default function LandingPage() {
     }
   }, [orgsData]);
 
-  // Load recent files from localStorage
   useEffect(() => {
     setRecentFiles(getRecentFiles());
   }, []);
@@ -76,31 +186,44 @@ export default function LandingPage() {
     }));
   }, [orgsData, orgStats]);
 
-  const greetingName = username || orgsData?.[0]?.user_name || orgsData?.[0]?.username || "there";
+  const greetingName = resolvedUsername || orgsData?.[0]?.user_name || orgsData?.[0]?.username || "there";
   const user = { name: greetingName, email: "", avatarUrl: "" };
 
-  // Admin-only metric: total orgs count
-  const adminMetrics = isAdmin ? [
+  const adminMetrics = resolvedIsAdmin ? [
     { label: "Organizations", value: orgs.length, icon: Users },
     { label: "Total storage quota", value: formatBytes(orgs.reduce((s, o) => s + o.maxBytes, 0)), icon: HardDrive },
   ] : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <TopBar user={user} onSearch={() => {}} hideSearch={!isAdmin} />
+      <TopBar user={user} onSearch={() => {}} hideSearch={!resolvedIsAdmin} />
 
       <main className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:px-6 lg:px-8">
-        <section className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            Good {getTimeOfDay()}, {greetingName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isAdmin
-              ? "Here\u2019s what\u2019s happening across your organizations."
-              : "Welcome back. Select an organization to continue."}
-          </p>
+        {/* Greeting */}
+        <section className="flex items-start justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Good {getTimeOfDay()}, {greetingName}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {resolvedIsAdmin
+                ? "Here\u2019s what\u2019s happening across your organizations."
+                : "Welcome back. Select an organization to continue."}
+            </p>
+          </div>
+          {resolvedIsAdmin && (
+            <button
+              type="button"
+              onClick={() => router.push("/admin")}
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-gray-50 transition"
+            >
+              <Settings className="h-4 w-4" strokeWidth={1.5} />
+              Admin Panel
+            </button>
+          )}
         </section>
 
+        {/* Admin metrics */}
         {adminMetrics && (
           <section className="mt-6 grid gap-4 md:grid-cols-2">
             {adminMetrics.map(({ label, value, icon: Icon }) => (
@@ -115,20 +238,22 @@ export default function LandingPage() {
           </section>
         )}
 
-        {!isAdmin && recentFiles.length > 0 && (
+        {/* Recent files — only for entries that have a saved orgId */}
+        {recentFiles.filter((f) => f.orgId).length > 0 && (
           <section className="mt-10">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Recent files
             </h2>
             <div className="overflow-hidden rounded-xl border border-border bg-card">
-              {recentFiles.map((item, idx) => (
+              {recentFiles.filter((f) => f.orgId).map((item, idx) => (
                 <button
                   key={`${item.key}-${idx}`}
                   type="button"
-                  onClick={() => {
-                    // Navigate to org/folder - simplified for now
-                    console.log("Navigate to:", item);
-                  }}
+                  onClick={() =>
+                    router.push(
+                      `/org/${item.orgId}${item.path ? `?path=${encodeURIComponent(item.path)}` : ""}`
+                    )
+                  }
                   className="flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left last:border-b-0 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -147,6 +272,7 @@ export default function LandingPage() {
           </section>
         )}
 
+        {/* Org cards with lazy-loaded folders */}
         <section className="mt-10">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Your organizations
@@ -155,32 +281,16 @@ export default function LandingPage() {
           {orgs.length === 0 && !isLoading ? (
             <EmptyState
               title="No organizations yet"
-              body={isAdmin ? "Create or join one to start organizing your files." : "You have not been added to any organization yet. Contact your administrator."}
-              actionLabel={isAdmin ? "Go to Admin Panel" : undefined}
-              onAction={isAdmin ? () => router.push("/admin") : undefined}
+              body={resolvedIsAdmin
+                ? "Create or join one to start organizing your files."
+                : "You have not been added to any organization yet. Contact your administrator."}
+              actionLabel={resolvedIsAdmin ? "Go to Admin Panel" : undefined}
+              onAction={resolvedIsAdmin ? () => router.push("/admin") : undefined}
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {orgs.map((org) => (
-                <button
-                  key={org.id}
-                  type="button"
-                  onClick={() => router.push(`/org/${org.id}`)}
-                  className="flex w-full items-center justify-between rounded-xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-accent hover:shadow-md"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-sm font-semibold text-accent">
-                      {org.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-medium text-foreground">{org.name}</p>
-                      <p className="truncate text-sm text-muted-foreground capitalize">
-                        {org.role || "Member"} · {org.members} members · {org.fileCount} files
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </button>
+                <OrgCard key={org.id} org={org} router={router} />
               ))}
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useContext } from "react";
 import { useQuery } from "react-query";
 import { ApplicationContext } from "@/services/ContextProvider";
@@ -9,11 +9,12 @@ import { Loader2 } from "lucide-react";
 
 /**
  * /org/[orgId] — sets the active org from the URL, then renders the explorer.
- * This makes org selection URL-driven (shareable, back-button-friendly).
+ * Accepts an optional ?path= query param to open a specific folder directly.
  */
 export default function OrgPage() {
   const { orgId } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     currentOrg, setCurrentOrg,
     setPath, setKeys, setBasePath, setTag, setTrashView,
@@ -32,12 +33,19 @@ export default function OrgPage() {
       bucket_name: org.bucket_name,
       org_name: org.org_name || org.folder_name || org.name,
     };
+    // ?path= from landing page folder click takes priority over org default
+    const pathParam = searchParams.get("path");
+    const resolvedPath = pathParam ?? org.folder_path ?? "";
+    const resolvedKeys = pathParam
+      ? pathParam.replace(/\/$/, "").split("/").filter(Boolean)
+      : org.folder_name ? [org.folder_name] : [];
+
     // Only update if org actually changed to avoid re-render loops
     if (String(currentOrg?.id) !== String(mapped.id)) {
       setCurrentOrg(mapped);
       setTag("explorer");
-      setPath(org.folder_path || "");
-      setKeys(org.folder_name ? [org.folder_name] : []);
+      setPath(resolvedPath);
+      setKeys(resolvedKeys);
       setBasePath(org.folder_path || org.bucket_name || "");
       setTrashView(false);
     }
