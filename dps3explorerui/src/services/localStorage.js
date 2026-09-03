@@ -54,11 +54,9 @@ export function addRecentFile(file) {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.RECENT_FILES);
     const parsed = data ? JSON.parse(data) : [];
-    // Remove if already exists
     const filtered = parsed.filter((f) => f.key !== file.key);
-    // Add to beginning
-    filtered.unshift({ ...file, timestamp: Date.now() });
-    // Keep only last 10
+    // orgId is required for landing-page navigation; entries without it are non-navigable
+    filtered.unshift({ ...file, orgId: file.orgId ?? null, timestamp: Date.now() });
     localStorage.setItem(STORAGE_KEYS.RECENT_FILES, JSON.stringify(filtered.slice(0, 10)));
   } catch (e) {
     console.error("Failed to save recent file:", e);
