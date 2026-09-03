@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 from threading import Lock
 from typing import Optional
 
+from botocore.exceptions import ClientError
+
 from fastapi import Request
 
 from core.config import settings
@@ -64,10 +66,9 @@ def _append_event_line(key: str, line: str, event_id: str) -> None:
                 elif isinstance(body, str):
                     existing = body
                     existing_bytes = body.encode("utf-8")
-            except _s3.exceptions.NoSuchKey:
-                existing = ""
-                existing_bytes = b""
-            except Exception:
+            except ClientError as e:
+                if e.response["Error"]["Code"] != "NoSuchKey":
+                    logger.warning("get_object failed for %s: %s", key, e)
                 existing = ""
                 existing_bytes = b""
 
