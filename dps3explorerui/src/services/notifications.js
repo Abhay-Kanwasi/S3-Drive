@@ -7,7 +7,11 @@ export const getNotifications = async () => {
   const response = await fetch(notifBase, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error("Failed to fetch notifications");
+  if (!response.ok) {
+    const error = new Error("Failed to fetch notifications");
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 };
 

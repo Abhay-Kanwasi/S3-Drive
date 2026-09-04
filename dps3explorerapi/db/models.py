@@ -194,6 +194,25 @@ class UserNotification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class StarredItem(Base):
+    """Per-user, per-org favorite file or folder (S3 key)."""
+    __tablename__ = "s3_starred_item"
+    __table_args__ = (
+        UniqueConstraint("user_id", "org_id", "object_key", name="uq_star_user_org_key"),
+        {"schema": SCHEMA},
+    )
+
+    id         = Column(BigInteger, Identity(start=1), primary_key=True)
+    user_id    = Column(BigInteger, ForeignKey(f"{SCHEMA}.users.id"), nullable=False, index=True)
+    org_id     = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id"), nullable=False)
+    object_key = Column(String(1024), nullable=False)
+    item_type  = Column(String(20), nullable=False)
+    name       = Column(String(255), nullable=False)
+    size       = Column(String(32), nullable=True)
+    last_modified = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class PlatformSettings(Base):
     """
     Global platform configuration (singleton row, id=1).

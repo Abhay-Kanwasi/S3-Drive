@@ -12,6 +12,8 @@ import { getExplorerAccess } from "@/services/access";
 import { getAdminMe } from "@/services/admin";
 import { getSelectedUserId, setSelectedUserId } from "@/services/auth";
 import Delete from "@/components/delete";
+import TrashTasks from "@/components/trashtasks";
+import { TaskDock } from "@/components/taskdock";
 import Information from "@/components/info";
 import Dialog from "@/components/dialog";
 import NewFolder from "@/components/newfolder";
@@ -148,6 +150,7 @@ export default function Layout({ children }) {
     viewerFile,
     setViewerFile,
     basePath,
+    currentOrg,
   } = useContext(ApplicationContext);
 
   useEffect(() => {
@@ -298,6 +301,8 @@ export default function Layout({ children }) {
       className="relative flex flex-row h-full w-full overflow-hidden"
     >
       <DevUserBar currentUserId={currentUserId || selectedId} username={username || userid} />
+      <TaskDock />
+      <TrashTasks />
       {dragging ? (
         <DragAndDrop />
       ) : (
@@ -312,7 +317,10 @@ export default function Layout({ children }) {
             <FileViewerModal
               fileKey={viewerFile.fileKey}
               fileName={viewerFile.fileName}
+              fileSize={viewerFile.size}
+              fileLastModified={viewerFile.last_modified}
               basePath={basePath}
+              orgId={currentOrg?.id}
               onClose={() => setViewerFile(null)}
             />
           )}

@@ -107,6 +107,20 @@ def check_prefix_access(
     )
 
 
+def prefix_is_accessible(
+    user: CurrentUser,
+    org_id: int,
+    prefix: str,
+    db: Session,
+) -> bool:
+    """Same rules as check_prefix_access (read) without raising."""
+    try:
+        check_prefix_access(user, org_id, prefix, db, require_write=False)
+        return True
+    except HTTPException:
+        return False
+
+
 def filter_folders_by_grants(
     user: CurrentUser,
     org_id: int,

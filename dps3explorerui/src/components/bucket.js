@@ -14,6 +14,7 @@ export function BucketItem({ children }) {
     keys,
     setKeys,
     setTrashView,
+    setStarredView,
     setBasePath,
     setCurrentOrg,
   } = useContext(ApplicationContext);
@@ -40,6 +41,7 @@ export function BucketItem({ children }) {
               setKeys([items.folder_name]);
               setBasePath(items.folder_path || items.bucket_name);
               setTrashView(false);
+              setStarredView(false);
               setCurrentOrg(
                 items.org_id
                   ? { id: items.org_id, bucket_name: items.bucket_name, org_name: items.org_name }

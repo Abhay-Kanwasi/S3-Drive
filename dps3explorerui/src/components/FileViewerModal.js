@@ -20,7 +20,7 @@ import { addRecentFile } from "@/services/localStorage";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
 
-export default function FileViewerModal({ fileKey, fileName, basePath, onClose }) {
+export default function FileViewerModal({ fileKey, fileName, fileSize, fileLastModified, basePath, orgId, onClose }) {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -78,16 +78,18 @@ export default function FileViewerModal({ fileKey, fileName, basePath, onClose }
 
   // Track file view in recent files
   useEffect(() => {
-    if (fileKey && fileName) {
+    if (fileKey && fileName && orgId) {
       addRecentFile({
         key: fileKey,
         name: fileName,
-        orgId: null, // Will be set when org is known
-        folderId: null, // Will be set when folder is known
+        orgId: orgId,
+        type: "file",
+        size: fileSize,
+        last_modified: fileLastModified,
         timestamp: Date.now(),
       });
     }
-  }, [fileKey, fileName]);
+  }, [fileKey, fileName, orgId, fileSize, fileLastModified]);
 
   // Initial load
   useEffect(() => {

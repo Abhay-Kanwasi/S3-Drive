@@ -46,7 +46,7 @@ export default function LoginPage() {
                 setUserId(e.target.value);
                 setError("");
               }}
-              placeholder="e.g. 1 (admin) or 2 (user)"
+              placeholder="e.g. 1 (bootstrap admin)"
               className={`w-full px-4 py-3 rounded-lg border ${
                 error ? "border-destructive" : "border-border"
               } bg-background text-foreground outline-none focus:ring-2 focus:ring-ring`}

@@ -8,7 +8,7 @@ import TrashSVG from "../app/assets/Trash.svg";
 
 export default function Trash() {
   const queryClient = useQueryClient();
-  const { setTag, userid, setTrashPath, setTrashView, setPath, setKeys, currentOrg } =
+  const { setTag, userid, setTrashPath, setTrashView, setStarredView, setPath, setKeys, currentOrg } =
     useContext(ApplicationContext);
 
   return (
@@ -19,6 +19,7 @@ export default function Trash() {
         onClick={() => {
           setTag("trash");
           setTrashView(true);
+          setStarredView(false);
           if (currentOrg) {
             setPath("");
             setKeys(["Recycle bin"]);

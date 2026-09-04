@@ -14,7 +14,7 @@ import { getUploadConstraints } from "@/services/server";
 import { Plus, FilePlus, FolderPlus } from "lucide-react";
 
 export default function Content({ children }) {
-  const { card, keys, setKeys, setPath, basePath, currentOrg, username, userid, isAdmin, path, uploadsafe, setUploadsafe, setProgress, files, setFiles, contextnew, setContextnew, setContextfolder, setContexterror, setContexterrormodal } = useContext(ApplicationContext);
+  const { card, keys, setKeys, setPath, basePath, currentOrg, username, userid, isAdmin, path, uploadsafe, setUploadsafe, setProgress, files, setFiles, contextnew, setContextnew, setContextfolder, setContexterror, setContexterrormodal, starredView, setStarredView, recentView, setRecentView } = useContext(ApplicationContext);
 
   const [toggle, setToggle] = useState(false);
   const newref = useRef(null);
@@ -71,12 +71,24 @@ export default function Content({ children }) {
   });
 
   // Build breadcrumb path items from keys array
-  const breadcrumbPath = keys.map((key, index) => ({
-    id: keys.slice(0, index + 1).join("/") + "/",
-    name: key,
-  }));
+  const breadcrumbPath = starredView
+    ? [{ id: "Starred/", name: "Starred" }]
+    : recentView
+    ? [{ id: "Recent/", name: "Recent" }]
+    : keys.map((key, index) => ({
+        id: keys.slice(0, index + 1).join("/") + "/",
+        name: key,
+      }));
 
   const handleNavigate = (id) => {
+    if (starredView && String(id || "").replace(/\/$/, "") === "Starred") {
+      return;
+    }
+    if (recentView && String(id || "").replace(/\/$/, "") === "Recent") {
+      return;
+    }
+    setStarredView(false);
+    setRecentView(false);
     if (!id) {
       setKeys([]);
       setPath(basePath || "");
@@ -121,6 +133,7 @@ export default function Content({ children }) {
       <Upload />
 
       {/* Floating New button */}
+      {!starredView && !recentView && (
       <div
         ref={newref}
         onClick={() => setToggle((v) => !v)}
@@ -178,6 +191,7 @@ export default function Content({ children }) {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

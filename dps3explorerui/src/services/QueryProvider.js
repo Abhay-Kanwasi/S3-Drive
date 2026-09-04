@@ -5,6 +5,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 2000,
+      retry: (failureCount, error) =>
+        error?.status !== 401 && error?.status !== 403 && failureCount < 2,
     },
   },
 });

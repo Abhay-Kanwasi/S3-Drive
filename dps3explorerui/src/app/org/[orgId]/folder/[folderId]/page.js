@@ -15,7 +15,7 @@ export default function FolderPage() {
   const { orgId, folderId } = useParams();
   const {
     currentOrg, setCurrentOrg,
-    setPath, setKeys, setBasePath, setTag, setTrashView,
+    setPath, setKeys, setBasePath, setTag, setTrashView, setStarredView,
   } = useContext(ApplicationContext);
 
   const { data: orgsData, isLoading } = useQuery("accessible-orgs", listAccessibleOrgs, {
@@ -49,6 +49,7 @@ export default function FolderPage() {
     setPath(prefix);
     setKeys(prefix.replace(/\/$/, "").split("/").filter(Boolean));
     setTrashView(false);
+    setStarredView(false);
   }, [orgsData, orgId, folderId]);
 
   if (isLoading) {

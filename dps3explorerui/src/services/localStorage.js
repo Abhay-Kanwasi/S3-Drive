@@ -55,11 +55,34 @@ export function addRecentFile(file) {
     const data = localStorage.getItem(STORAGE_KEYS.RECENT_FILES);
     const parsed = data ? JSON.parse(data) : [];
     const filtered = parsed.filter((f) => f.key !== file.key);
-    // orgId is required for landing-page navigation; entries without it are non-navigable
-    filtered.unshift({ ...file, orgId: file.orgId ?? null, timestamp: Date.now() });
-    localStorage.setItem(STORAGE_KEYS.RECENT_FILES, JSON.stringify(filtered.slice(0, 10)));
+    // orgId is required for navigation; entries without it are non-navigable
+    const entry = {
+      key: file.key,
+      name: file.name,
+      orgId: file.orgId ?? null,
+      type: file.type || "file",
+      size: file.size,
+      last_modified: file.last_modified,
+      timestamp: Date.now(),
+    };
+    filtered.unshift(entry);
+    localStorage.setItem(STORAGE_KEYS.RECENT_FILES, JSON.stringify(filtered.slice(0, 20)));
   } catch (e) {
     console.error("Failed to save recent file:", e);
+  }
+}
+
+export function removeRecentFile(key) {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.RECENT_FILES);
+    if (!data) return;
+    const parsed = JSON.parse(data);
+    localStorage.setItem(
+      STORAGE_KEYS.RECENT_FILES,
+      JSON.stringify(parsed.filter((f) => f.key !== key))
+    );
+  } catch (e) {
+    console.error("Failed to remove recent file:", e);
   }
 }
 
