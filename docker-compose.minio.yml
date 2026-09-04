@@ -40,8 +40,8 @@ services:
     command:
       - |
         BUCKET="$${BUCKET:-dpengineeringtesting}"
-        TRASH_BUCKET="$${TRASH_BUCKET:-explorer-trash}"
-        AUDIT_BUCKET="$${AUDIT_BUCKET:-explorer-trash}"
+        TRASH_BUCKET="$${TRASH_BUCKET:-s3explorer}"
+        AUDIT_BUCKET="$${AUDIT_BUCKET:-s3explorer}"
         mc alias set local http://minio:9000 minioadmin minioadmin
         mc mb -p "local/$${BUCKET}" || true
         mc mb -p "local/$${TRASH_BUCKET}" || true

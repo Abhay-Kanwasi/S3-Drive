@@ -17,6 +17,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from typing import Optional
 
+from botocore.exceptions import ClientError
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -136,10 +138,11 @@ def _get_events_from_key(key: str) -> list[dict]:
         resp = _s3.get_object(Bucket=AUDIT_BUCKET, Key=key)
         raw = resp["Body"].read()
         text = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
-    except _s3.exceptions.NoSuchKey:
-        return []
-    except Exception as e:
-        if "InvalidObjectState" in str(type(e).__name__) or "Glacier" in str(e):
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code == "NoSuchKey":
+            return []
+        if code == "InvalidObjectState" or "Glacier" in str(e):
             return []
         logger.warning("Failed to read audit object %s: %s", key, e)
         return []

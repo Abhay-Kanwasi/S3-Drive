@@ -1,20 +1,23 @@
 "use client";
 
-import { useMemo, useContext, useEffect, useState } from "react";
+import { useMemo, useContext, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "react-query";
+import { useQuery, useQueries } from "react-query";
 import {
   ArrowRight, ChevronDown, ChevronRight,
   HardDrive, Users, Clock3, FileText, Folder, Settings,
+  Bell, ShieldAlert, Activity,
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import EmptyState from "@/components/EmptyState";
-import { listAccessibleOrgs, browseFolders } from "@/services/browse";
-import { getOrganizations, getAdminMe } from "@/services/admin";
+import StorageMeter from "@/components/StorageMeter";
+import { listAccessibleOrgs, browseFolders, getOrgStorage } from "@/services/browse";
+import { getOrganizations, getAdminMe, getAdminUserStats, getAuditEvents } from "@/services/admin";
 import { getSelectedUserId } from "@/services/auth";
 import { getExplorerAccess } from "@/services/access";
 import { ApplicationContext } from "@/services/ContextProvider";
-import { getOrgStats, getRecentFiles } from "@/services/localStorage";
+import { getRecentFiles } from "@/services/localStorage";
+import { getNotifications } from "@/services/notifications";
 
 function getTimeOfDay() {
   const hour = new Date().getHours();
@@ -59,7 +62,7 @@ function OrgFolders({ orgId, router }) {
 }
 
 // Expandable org card — folders lazy-load on expand
-function OrgCard({ org, router }) {
+function OrgCard({ org, router, isAdmin }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -76,7 +79,7 @@ function OrgCard({ org, router }) {
           <div className="min-w-0">
             <p className="truncate text-base font-medium text-foreground">{org.name}</p>
             <p className="truncate text-sm text-muted-foreground capitalize">
-              {org.role || "Member"} · {org.members} members · {org.fileCount} files
+              {org.role || "Member"}{isAdmin ? ` · ${org.members} members` : ""} · {org.fileCount} files
             </p>
           </div>
         </div>
@@ -94,6 +97,13 @@ function OrgCard({ org, router }) {
         </div>
       </button>
 
+      {/* Storage meter visible to all users */}
+      {org.totalBytes > 0 && (
+        <div className="px-4 pb-3 pt-1 border-t border-border">
+          <StorageMeter usedBytes={org.usedBytes} totalBytes={org.totalBytes} />
+        </div>
+      )}
+
       {expanded && <OrgFolders orgId={org.id} router={router} />}
     </div>
   );
@@ -103,8 +113,8 @@ export default function LandingPage() {
   const router = useRouter();
   const selectedUserId = getSelectedUserId();
   const { username: ctxUsername, isAdmin: ctxIsAdmin, setUsername, setIsAdmin } = useContext(ApplicationContext);
-  const [orgStats, setOrgStatsLocal] = useState({});
   const [recentFiles, setRecentFiles] = useState([]);
+  const openNotifRef = useRef(null);
 
   // Run auth queries directly so the landing page is fully populated on first
   // load, without depending on the explorer layout having run first.
@@ -114,29 +124,48 @@ export default function LandingPage() {
     { enabled: Boolean(selectedUserId), retry: false, staleTime: 60 * 1000 }
   );
 
+  // getAdminMe returns 403 for non-admins — onError keeps adminMe undefined, treated as not-admin
   const { data: adminMe } = useQuery(
     ["admin-me", selectedUserId],
     getAdminMe,
-    { enabled: Boolean(selectedUserId) && access?.can_access === true, retry: false, staleTime: 5 * 60 * 1000 }
+    { enabled: Boolean(selectedUserId) && access?.can_access === true, retry: false, staleTime: 5 * 60 * 1000, onError: () => {} }
   );
 
-  // Sync resolved identity into context so other parts of the app benefit too
+  // Once access resolves, if adminMe is still undefined it means 403 → not admin
+  // Never fall back to stale ctxIsAdmin once we have a fresh access response
+  const resolvedIsAdmin = adminMe
+    ? Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin)
+    : access
+      ? false
+      : ctxIsAdmin;
+  const resolvedUsername = adminMe?.user_name || access?.user_name || ctxUsername;
+
   useEffect(() => {
     if (adminMe?.user_name) setUsername(adminMe.user_name);
     else if (access?.user_name) setUsername(access.user_name);
   }, [adminMe, access]);
 
   useEffect(() => {
-    if (adminMe) {
-      setIsAdmin(Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin));
-    }
-  }, [adminMe]);
+    if (access) setIsAdmin(resolvedIsAdmin);
+  }, [resolvedIsAdmin, access]);
 
-  // Use locally resolved values; fall back to context if queries haven't settled yet
-  const resolvedIsAdmin = adminMe
-    ? Boolean(adminMe.is_global_admin || adminMe.role_label === "admin" || adminMe.is_admin)
-    : ctxIsAdmin;
-  const resolvedUsername = adminMe?.user_name || access?.user_name || ctxUsername;
+  // Notifications for normal users
+  const { data: notifData } = useQuery(
+    ["notifications", selectedUserId],
+    getNotifications,
+    { enabled: Boolean(selectedUserId) && access?.can_access === true, staleTime: 60_000, retry: false, onError: () => {} }
+  );
+  const unreadCount = notifData?.unread_count ?? 0;
+  const notifItems = (notifData?.items ?? []).slice(0, 4);
+
+  // Today's audit events for admins
+  const todayStr = new Date().toISOString().split("T")[0];
+  const { data: auditData } = useQuery(
+    ["landing-audit", selectedUserId],
+    () => getAuditEvents({ dateFrom: todayStr, dateTo: todayStr, pageSize: 5 }),
+    { enabled: Boolean(selectedUserId) && resolvedIsAdmin, staleTime: 60_000, retry: false, onError: () => {} }
+  );
+  const recentAuditEvents = auditData?.events ?? [];
 
   const { data: orgsData, isLoading } = useQuery(
     ["landing-orgs", selectedUserId],
@@ -157,46 +186,65 @@ export default function LandingPage() {
   );
 
   useEffect(() => {
-    if (Array.isArray(orgsData)) {
-      const stats = {};
-      orgsData.forEach((org) => {
-        const stored = getOrgStats(org.org_id ?? org.id);
-        stats[org.org_id ?? org.id] = stored || { fileCount: 0, members: 0 };
-      });
-      setOrgStatsLocal(stats);
-    }
-  }, [orgsData]);
-
-  useEffect(() => {
     setRecentFiles(getRecentFiles());
   }, []);
 
+  // Fetch storage + member counts per org in parallel once org list is known
+  const orgIds = useMemo(() => (Array.isArray(orgsData) ? orgsData.map((o) => o.org_id ?? o.id) : []), [orgsData]);
+
+  const storageResults = useQueries(
+    orgIds.map((id) => ({
+      queryKey: ["org-storage", id],
+      queryFn: () => getOrgStorage(id),
+      staleTime: 60_000,
+      retry: false,
+    }))
+  );
+
+  const memberResults = useQueries(
+    orgIds.map((id) => ({
+      queryKey: ["org-member-stats", id],
+      queryFn: () => getAdminUserStats(id),
+      staleTime: 60_000,
+      retry: false,
+      enabled: resolvedIsAdmin,
+    }))
+  );
+
   const orgs = useMemo(() => {
     if (!Array.isArray(orgsData)) return [];
-    return orgsData.map((org) => ({
-      id: org.org_id ?? org.id,
-      name: org.org_name || org.folder_name || org.name || "Organization",
-      role: org.role || org.role_label || "Member",
-      maxBytes: org.max_upload_size_bytes || 0,
-      fileCount: (orgStats[org.org_id ?? org.id]?.fileCount ?? 0) || 0,
-      members: (orgStats[org.org_id ?? org.id]?.members ?? 0) || 0,
-      initials: (org.org_name || org.folder_name || org.name || "Org")
-        .split(/\s+/).slice(0, 2)
-        .map((p) => p[0]?.toUpperCase() || "").join("") || "OR",
-    }));
-  }, [orgsData, orgStats]);
+    return orgsData.map((org, idx) => {
+      const storage = storageResults[idx]?.data;
+      const memberStats = memberResults[idx]?.data;
+      return {
+        id: org.org_id ?? org.id,
+        name: org.org_name || org.folder_name || org.name || "Organization",
+        role: org.role || org.role_label || "Member",
+        usedBytes: storage?.used_bytes ?? 0,
+        totalBytes: storage?.total_bytes ?? org.max_upload_size_bytes ?? 0,
+        fileCount: storage?.file_count ?? 0,
+        members: memberStats?.total_users ?? 0,
+        initials: (org.org_name || org.folder_name || org.name || "Org")
+          .split(/\s+/).slice(0, 2)
+          .map((p) => p[0]?.toUpperCase() || "").join("") || "OR",
+      };
+    });
+  }, [orgsData, storageResults, memberResults]);
 
   const greetingName = resolvedUsername || orgsData?.[0]?.user_name || orgsData?.[0]?.username || "there";
   const user = { name: greetingName, email: "", avatarUrl: "" };
 
+  const totalUsers = memberResults.reduce((sum, r) => sum + (r.data?.total_users ?? 0), 0);
+
   const adminMetrics = resolvedIsAdmin ? [
     { label: "Organizations", value: orgs.length, icon: Users },
-    { label: "Total storage quota", value: formatBytes(orgs.reduce((s, o) => s + o.maxBytes, 0)), icon: HardDrive },
+    { label: "Total Users", value: totalUsers, icon: Activity },
+    { label: "Total storage quota", value: formatBytes(orgs.reduce((s, o) => s + o.totalBytes, 0)), icon: HardDrive },
   ] : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <TopBar user={user} onSearch={() => {}} hideSearch={!resolvedIsAdmin} />
+      <TopBar user={user} onSearch={() => {}} hideSearch={!resolvedIsAdmin} onOpenNotifications={openNotifRef} />
 
       <main className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:px-6 lg:px-8">
         {/* Greeting */}
@@ -211,21 +259,23 @@ export default function LandingPage() {
                 : "Welcome back. Select an organization to continue."}
             </p>
           </div>
-          {resolvedIsAdmin && (
-            <button
-              type="button"
-              onClick={() => router.push("/admin")}
-              className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-gray-50 transition"
-            >
-              <Settings className="h-4 w-4" strokeWidth={1.5} />
-              Admin Panel
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {resolvedIsAdmin && (
+              <button
+                type="button"
+                onClick={() => router.push("/admin")}
+                className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-gray-50 transition"
+              >
+                <Settings className="h-4 w-4" strokeWidth={1.5} />
+                Admin Panel
+              </button>
+            )}
+          </div>
         </section>
 
         {/* Admin metrics */}
         {adminMetrics && (
-          <section className="mt-6 grid gap-4 md:grid-cols-2">
+          <section className="mt-6 grid gap-4 md:grid-cols-3">
             {adminMetrics.map(({ label, value, icon: Icon }) => (
               <div key={label} className="rounded-xl border border-border bg-card p-5 shadow-sm">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -235,6 +285,84 @@ export default function LandingPage() {
                 <div className="mt-4 text-3xl font-semibold text-foreground">{value}</div>
               </div>
             ))}
+          </section>
+        )}
+
+        {/* Notifications section — normal users only */}
+        {!resolvedIsAdmin && (
+          <section className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Notifications {unreadCount > 0 && <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+                </h2>
+              </div>
+              {notifItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => openNotifRef.current?.()}
+                  className="text-xs text-muted-foreground hover:text-foreground transition"
+                >
+                  See all →
+                </button>
+              )}
+            </div>
+            <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
+              {notifItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Bell className="h-8 w-8 text-muted-foreground/40 mb-2" strokeWidth={1.5} />
+                  <p className="text-sm text-muted-foreground">You're all caught up!</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">No notifications yet.</p>
+                </div>
+              ) : (
+                notifItems.map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => openNotifRef.current?.()}
+                    className={`flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-gray-50 transition ${!n.is_read ? "bg-blue-50/40" : ""}`}
+                  >
+                    <Bell className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-blue-500" : "text-muted-foreground"}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{n.message}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatTimeAgo(new Date(n.created_at).getTime())}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Recent audit activity — admins only */}
+        {resolvedIsAdmin && recentAuditEvents.length > 0 && (
+          <section className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Today's Activity</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/admin/audit")}
+                className="text-xs text-muted-foreground hover:text-foreground transition"
+              >
+                View full audit log →
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
+              {recentAuditEvents.map((ev) => (
+                <div key={ev.event_id} className="flex items-center gap-3 px-4 py-3">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-gray-50 text-gray-600 border-gray-200 whitespace-nowrap">
+                    {ev.event_label || ev.event_type}
+                  </span>
+                  <span className="text-sm text-foreground truncate flex-1">{ev.display_target || ev.target_key || "—"}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{ev.user_name || ev.user_id}</span>
+                </div>
+              ))}
+            </div>
           </section>
         )}
 
@@ -290,7 +418,7 @@ export default function LandingPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {orgs.map((org) => (
-                <OrgCard key={org.id} org={org} router={router} />
+                <OrgCard key={org.id} org={org} router={router} isAdmin={resolvedIsAdmin} />
               ))}
             </div>
           )}

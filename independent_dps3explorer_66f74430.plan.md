@@ -309,8 +309,8 @@ BOOTSTRAP_ADMIN_USERNAME=admin
 
 # AWS / S3 (core backend). NOTE: current code reads BUCKET (not S3_BUCKET).
 BUCKET=
-TRASH_BUCKET=explorer-trash
-AUDIT_BUCKET=explorer-trash
+TRASH_BUCKET=s3explorer
+AUDIT_BUCKET=s3explorer
 env=local
 
 # Azure AD vars are currently REQUIRED at import (config_env["clientId"], etc.).
