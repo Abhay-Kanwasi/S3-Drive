@@ -12,6 +12,7 @@ import {
   finishUpload,
   getUploadConstraints,
 } from "@/services/server";
+import { DockedToast } from "./taskdock";
 
 const FALLBACK_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const ACTIVE_UPLOAD_STATUSES = new Set(["queued", "uploading"]);
@@ -288,8 +289,8 @@ export default function Upload() {
   return (
     <>
       {visible && minimized && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card shadow-lg px-3 py-2">
+        <DockedToast>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card shadow-lg px-3 py-2 max-w-[calc(100vw-4rem)]">
             <button
               onClick={() => setMinimized(false)}
               className="text-left text-sm text-foreground hover:text-foreground/80 transition-colors"
@@ -312,7 +313,7 @@ export default function Upload() {
               </button>
             )}
           </div>
-        </div>
+        </DockedToast>
       )}
 
       {visible && !minimized && (

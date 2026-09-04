@@ -182,7 +182,7 @@ export default function LandingPage() {
       }
       return [];
     },
-    { retry: false, staleTime: 60_000, enabled: Boolean(selectedUserId) }
+    { retry: false, staleTime: 60_000, enabled: Boolean(selectedUserId) && access?.can_access === true }
   );
 
   useEffect(() => {
@@ -312,7 +312,7 @@ export default function LandingPage() {
               {notifItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <Bell className="h-8 w-8 text-muted-foreground/40 mb-2" strokeWidth={1.5} />
-                  <p className="text-sm text-muted-foreground">You're all caught up!</p>
+                  <p className="text-sm text-muted-foreground">You&apos;re all caught up!</p>
                   <p className="text-xs text-muted-foreground/70 mt-1">No notifications yet.</p>
                 </div>
               ) : (
@@ -342,7 +342,7 @@ export default function LandingPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Today's Activity</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Today&apos;s Activity</h2>
               </div>
               <button
                 type="button"

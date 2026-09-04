@@ -4,7 +4,7 @@ import { useQueryClient } from "react-query";
 import Restore from "../app/assets/restore.svg";
 import { ApplicationContext } from "@/services/ContextProvider";
 import { restoreItems, isViewableFile } from "@/services/server";
-import { renameFolder, deleteFolder, restoreFromTrash, purgeFromTrash, renameFile, copyFile, moveFile } from "@/services/browse";
+import { renameFolder, restoreFromTrash, purgeFromTrash, renameFile, copyFile, moveFile } from "@/services/browse";
 import { get_metadata } from "@/services/Queries";
 import { Info, Trash2, Pencil, FolderX, Copy, Eye, FolderInput, FolderSymlink } from "lucide-react";
 import FolderPickerModal from "./FolderPickerModal";
@@ -40,6 +40,7 @@ export default function ContextMenu({
     basePath,
     currentOrg,
     setViewerFile,
+    enqueueTrashTask,
   } = useContext(ApplicationContext);
   const queryClient = useQueryClient();
   const [renaming, setRenaming] = useState(false);
@@ -164,16 +165,15 @@ export default function ContextMenu({
     }
   };
 
-  const handleFolderDelete = async () => {
+  const handleFolderDelete = () => {
     if (!currentOrg) return;
-    try {
-      await deleteFolder(currentOrg.id, keypath);
-      queryClient.invalidateQueries(["contents"]);
-      queryClient.invalidateQueries(["browse"]);
-      setVisible(false);
-    } catch (e) {
-      setError(e.message);
-    }
+    enqueueTrashTask({
+      type: "folder",
+      name,
+      keypath,
+      orgId: currentOrg.id,
+    });
+    setVisible(false);
   };
 
   const assignContext = () => {
@@ -256,7 +256,7 @@ export default function ContextMenu({
               {itemType === "file" && isViewableFile(name) && !trashView && (
                 <div
                   onClick={() => {
-                    setViewerFile({ fileKey: keypath, fileName: name });
+                    setViewerFile({ fileKey: keypath, fileName: name, size, last_modified });
                     setVisible(false);
                   }}
                   className="text-foreground font-normal hover:rounded-lg hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm transition-colors duration-150"

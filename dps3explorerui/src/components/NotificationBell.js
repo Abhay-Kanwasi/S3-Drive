@@ -25,8 +25,9 @@ export default function NotificationBell({ onOpenRequest }) {
 
   const { data } = useQuery(queryKey, getNotifications, {
     enabled: !!userid,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   const unreadCount = data?.unread_count ?? 0;

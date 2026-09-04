@@ -17,7 +17,7 @@ export default function OrgPage() {
   const searchParams = useSearchParams();
   const {
     currentOrg, setCurrentOrg,
-    setPath, setKeys, setBasePath, setTag, setTrashView,
+    setPath, setKeys, setBasePath, setTag, setTrashView, setStarredView,
   } = useContext(ApplicationContext);
 
   const { data: orgsData, isLoading } = useQuery("accessible-orgs", listAccessibleOrgs, {
@@ -48,6 +48,7 @@ export default function OrgPage() {
       setKeys(resolvedKeys);
       setBasePath(org.folder_path || org.bucket_name || "");
       setTrashView(false);
+      setStarredView(false);
     }
   }, [orgsData, orgId]);
 

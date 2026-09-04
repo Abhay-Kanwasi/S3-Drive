@@ -70,7 +70,7 @@ function FolderTreeNode({ orgId, prefix, name, depth = 0, onNavigate }) {
 
 // ─── Quick Access ─────────────────────────────────────────────────────────────
 
-function QuickAccess({ onRecent, onStarred }) {
+function QuickAccess({ onRecent, onStarred, recentActive, starredActive }) {
   const recentFiles = getRecentFiles();
   
   return (
@@ -80,7 +80,11 @@ function QuickAccess({ onRecent, onStarred }) {
       </p>
       <button
         onClick={onRecent}
-        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-sidebar-foreground hover:bg-gray-100 rounded-md transition-colors"
+        className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm rounded-md transition-colors ${
+          recentActive
+            ? "bg-gray-100 text-foreground font-medium"
+            : "text-sidebar-foreground hover:bg-gray-100"
+        }`}
       >
         <Clock3 className="w-4 h-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         Recent
@@ -90,7 +94,11 @@ function QuickAccess({ onRecent, onStarred }) {
       </button>
       <button
         onClick={onStarred}
-        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-sidebar-foreground hover:bg-gray-100 rounded-md transition-colors"
+        className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm rounded-md transition-colors ${
+          starredActive
+            ? "bg-gray-100 text-foreground font-medium"
+            : "text-sidebar-foreground hover:bg-gray-100"
+        }`}
       >
         <Star className="w-4 h-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         Starred
@@ -106,7 +114,8 @@ export default function Sidebar() {
     path, setPath, setKeys,
     basePath, setBasePath,
     isAdmin, currentOrg, setCurrentOrg,
-    setTag, setTrashView,
+    setTag, setTrashView, setStarredView, starredView,
+    recentView, setRecentView,
   } = useContext(ApplicationContext);
 
   const router = useRouter();
@@ -171,6 +180,8 @@ export default function Sidebar() {
     setKeys(org.folder_name ? [org.folder_name] : []);
     setBasePath(org.folder_path || org.bucket_name || "");
     setTrashView(false);
+    setStarredView(false);
+    setRecentView(false);
     queryClient.invalidateQueries(["contents"]);
   };
 
@@ -180,6 +191,8 @@ export default function Sidebar() {
     setKeys(parts);
     setTag("explorer");
     setTrashView(false);
+    setStarredView(false);
+    setRecentView(false);
   };
 
   return (
@@ -214,8 +227,24 @@ export default function Sidebar() {
 
         {/* Quick Access */}
         <QuickAccess
-          onRecent={() => {}}
-          onStarred={() => {}}
+          onRecent={() => {
+            setRecentView(true);
+            setStarredView(false);
+            setTrashView(false);
+            setTag("recent");
+            setPath("");
+            setKeys(["Recent"]);
+          }}
+          recentActive={recentView}
+          starredActive={starredView}
+          onStarred={() => {
+            setStarredView(true);
+            setRecentView(false);
+            setTrashView(false);
+            setTag("starred");
+            setPath("");
+            setKeys(["Starred"]);
+          }}
         />
 
         {/* Folder Tree */}

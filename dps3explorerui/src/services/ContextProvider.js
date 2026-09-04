@@ -30,6 +30,8 @@ export function ContextProvider({ children }) {
   const [path, setPath] = useState("");
   const [basePath, setBasePath] = useState("");
   const [trashView, setTrashView] = useState(false);
+  const [starredView, setStarredView] = useState(false);
+  const [recentView, setRecentView] = useState(false);
   const [trashpath, setTrashPath] = useState("");
   const [keys, setKeys] = useState([]);
   const [card, setCard] = useState(true);
@@ -52,6 +54,19 @@ export function ContextProvider({ children }) {
   const [contextinfo, setContextinfo] = useState(false);
   const [contexterrormodal, setContexterrormodal] = useState(false);
   const [viewerFile, setViewerFile] = useState(null);
+  const [trashTasks, setTrashTasks] = useState([]);
+
+  const enqueueTrashTask = (task) => {
+    setTrashTasks((prev) => [
+      ...prev,
+      {
+        ...task,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        status: "queued",
+        error: "",
+      },
+    ]);
+  };
 
   return (
     <ApplicationContext.Provider
@@ -100,6 +115,10 @@ export function ContextProvider({ children }) {
         setTrashPath,
         trashView,
         setTrashView,
+        starredView,
+        setStarredView,
+        recentView,
+        setRecentView,
         contextnew,
         setContextnew,
         contextfolder,
@@ -114,6 +133,9 @@ export function ContextProvider({ children }) {
         setBasePath,
         viewerFile,
         setViewerFile,
+        trashTasks,
+        setTrashTasks,
+        enqueueTrashTask,
       }}
     >
       {children}
