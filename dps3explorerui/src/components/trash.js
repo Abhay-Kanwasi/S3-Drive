@@ -1,41 +1,56 @@
-import Image from "next/image";
-import { useQuery, useQueryClient } from "react-query";
+"use client";
+import { useQueryClient } from "react-query";
 import { useContext } from "react";
 import { ApplicationContext } from "@/services/ContextProvider";
-import { loadFolderitems } from "../services/Queries";
-import { listTrash } from "@/services/browse";
-import TrashSVG from "../app/assets/Trash.svg";
+import { Trash2 } from "lucide-react";
 
 export default function Trash() {
   const queryClient = useQueryClient();
-  const { setTag, userid, setTrashPath, setTrashView, setStarredView, setPath, setKeys, currentOrg } =
-    useContext(ApplicationContext);
+  const {
+    setTag,
+    userid,
+    setTrashPath,
+    setTrashView,
+    trashView,
+    setStarredView,
+    setRecentView,
+    setPath,
+    setKeys,
+    currentOrg,
+  } = useContext(ApplicationContext);
+
+  const handleClick = () => {
+    setTag("trash");
+    setTrashView(true);
+    if (setStarredView) setStarredView(false);
+    if (setRecentView) setRecentView(false);
+    if (currentOrg) {
+      setPath("");
+      setKeys(["Recycle bin"]);
+      setTrashPath(currentOrg.id);
+      queryClient.invalidateQueries(["trash"]);
+    } else {
+      setPath(`${String(userid)}/`);
+      setTrashPath(userid);
+      setKeys(["Recycle bin"]);
+      queryClient.invalidateQueries(["trash", userid]);
+    }
+  };
 
   return (
-    <div className="text-sidebar-foreground select-none">
-      <hr className="border-sidebar-border" />
-      <div
-        className="flex flex-row rounded-lg truncate text-sm items-center gap-x-1.5 cursor-pointer hover:bg-gray-50 hover:text-foreground px-6 py-3 mt-1.5 transition-colors duration-150"
-        onClick={() => {
-          setTag("trash");
-          setTrashView(true);
-          setStarredView(false);
-          if (currentOrg) {
-            setPath("");
-            setKeys(["Recycle bin"]);
-            setTrashPath(currentOrg.id);
-            queryClient.invalidateQueries(["trash"]);
-          } else {
-            setPath(`${String(userid)}/`);
-            setTrashPath(userid);
-            setKeys(["Recycle bin"]);
-            queryClient.invalidateQueries(["trash", userid]);
-          }
-        }}
+    <div className="select-none">
+      <button
+        type="button"
+        onClick={handleClick}
+        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-md transition-colors group ${
+          trashView
+            ? "bg-gray-100 text-foreground font-medium"
+            : "text-muted-foreground hover:text-foreground hover:bg-gray-100"
+        }`}
       >
-        <Image src={TrashSVG} alt="Trash Icon" />
-        Recycle bin
-      </div>
+        <Trash2 className={`w-4 h-4 shrink-0 transition-colors ${trashView ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`} strokeWidth={1.5} />
+        <span>Recycle bin</span>
+      </button>
     </div>
   );
 }

@@ -77,11 +77,84 @@
   --delete-button-bg: #344054;
   --black-alpha: rgba(16, 24, 40, 0.11);
 
+  color-scheme: light;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Dark mode — applied when <html class="dark"> */
+.dark {
+  --gray-25:  #111111;
+  --gray-50:  #181818;
+  --gray-100: #282828;
+  --gray-200: #303030;
+  --gray-300: #3d3d3d;
+  --gray-400: #666666;
+  --gray-500: #888888;
+  --gray-600: #aaaaaa;
+  --gray-700: #cccccc;
+  --gray-900: #f0f0f0;
+
+  --surface: #222222;
+
+  --accent:         #6366f1;
+  --accent-hover:   #818cf8;
+  --accent-subtle:  #1e1b4b;
+  --accent-text-on: #ffffff;
+
+  --status-success:    #34d399;
+  --status-success-bg: #052e1c;
+  --status-warning:    #fbbf24;
+  --status-warning-bg: #2d1c00;
+  --status-error:      #f87171;
+  --status-error-bg:   #2d1010;
+  --status-info:       #888888;
+  --status-info-bg:    #1e1e1e;
+
+  --delete-button-bg: #f87171;
+  --black-alpha: rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
+}
+
+/* Fix hardcoded bg-white in modals, dropdowns, panels */
+.dark .bg-white {
+  background-color: var(--card) !important;
+}
+.dark .text-gray-900 {
+  color: var(--foreground) !important;
+}
+.dark .border-gray-200 {
+  border-color: var(--border) !important;
+}
+.dark .bg-blue-50\/40,
+.dark .bg-blue-50 {
+  background-color: var(--accent-subtle) !important;
+}
+
+/* Fix shadows for dark surfaces */
+.dark .card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.dark .hover-button:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.dark .shadow-sm  { box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+.dark .shadow-lg  { box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.dark .shadow-xl  { box-shadow: 0 12px 36px rgba(0,0,0,0.55); }
+.dark .shadow-2xl { box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+.dark .shadow-elevated { box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+
+/* Scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Ensure full height works inside iframes */

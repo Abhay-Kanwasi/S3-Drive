@@ -1,6 +1,5 @@
-import Image from "next/image";
 import { useContext, useEffect, useRef } from "react";
-import FolderIcon from "../app/assets/folder.svg";
+import FolderIcon from "./FolderIcon";
 import { ApplicationContext } from "@/services/ContextProvider";
 import { get_metadata } from "@/services/Queries";
 import { X } from "lucide-react";
@@ -52,7 +51,7 @@ export default function Information({ children }) {
             </button>
           </div>
           <div className="ml-5 my-3">
-            <Image className="px-3 my-3" src={FolderIcon} alt="Folder" />
+            <FolderIcon className="w-12 h-12 ml-3 my-3" />
           </div>
           <div className="flex flex-col ml-5 mb-6 text-foreground">
             <div className="py-2 px-4 inline-flex flex-col">

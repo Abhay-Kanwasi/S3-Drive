@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import NotificationBell from "@/components/NotificationBell";
 import UserMenu from "@/components/UserMenu";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function TopBar({ user, onSearch, hideSearch = false, onOpenNotifications }) {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function TopBar({ user, onSearch, hideSearch = false, onOpenNotif
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <NotificationBell onOpenRequest={openNotifRef} />
           <UserMenu user={user} />
         </div>
