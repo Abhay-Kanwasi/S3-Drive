@@ -1,7 +1,6 @@
 "use client";
 import { useMutation, useQuery } from "react-query";
-import Image from "next/image";
-import FolderIcon from "../app/assets/folder.svg";
+import FolderIcon from "./FolderIcon";
 import { loadContents } from "@/services/Queries";
 import { useContext, useState } from "react";
 import { ApplicationContext } from "@/services/ContextProvider";
@@ -90,7 +89,7 @@ export default function Cards({ name, type, size, last_modified, keypath, create
           {type === "file" ? (
             <FileTypeIcon filename={name} colorMap={colorMap} />
           ) : (
-            <Image width={32} height={32} src={FolderIcon} alt="Folder" />
+            <FolderIcon className="w-9 h-9" />
           )}
         </div>
         <p className="truncate w-32 text-center hover:text-clip text-sm">

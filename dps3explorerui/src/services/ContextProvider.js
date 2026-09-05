@@ -1,10 +1,12 @@
 "use client";
 import { createContext, useState, useEffect } from "react";
 import { getSelectedUserId, setSelectedUserId as persistUserId } from "@/services/auth";
+import { useTheme } from "@/hooks/useTheme";
 
 export const ApplicationContext = createContext(null);
 
 export function ContextProvider({ children }) {
+  const { theme, toggleTheme } = useTheme();
   const [folder, setFolder] = useState("");
   const [userid, setUserid] = useState();
   const [username, setUsername] = useState();
@@ -136,6 +138,8 @@ export function ContextProvider({ children }) {
         trashTasks,
         setTrashTasks,
         enqueueTrashTask,
+        theme,
+        toggleTheme,
       }}
     >
       {children}
