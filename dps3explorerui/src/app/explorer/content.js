@@ -4,6 +4,7 @@ import Upload from "@/components/upload";
 import View from "@/components/view";
 import ToggleView from "@/components/toggleview";
 import NotificationBell from "@/components/NotificationBell";
+import ThemeToggle from "@/components/ThemeToggle";
 import SearchBar from "@/components/SearchBar";
 import UserMenu from "@/components/UserMenu";
 import { useContext, useRef, useState, useEffect } from "react";
@@ -117,6 +118,7 @@ export default function Content({ children }) {
             <SearchBar onSearch={() => {}} scope="org" disabled />
           </div>
         )}
+        <ThemeToggle />
         <NotificationBell />
         <UserMenu user={user} />
       </div>
@@ -137,18 +139,18 @@ export default function Content({ children }) {
       <div
         ref={newref}
         onClick={() => setToggle((v) => !v)}
-        className="fixed bottom-8 right-8 z-50 bg-accent text-white rounded-full shadow-elevated cursor-pointer hover:-translate-y-0.5 hover:bg-accent-hover transition-all duration-200 ease-out"
+        className="fixed bottom-8 right-8 z-50 bg-accent text-white dark:bg-card dark:text-foreground dark:border dark:border-border dark:hover:bg-muted dark:hover:border-accent/50 rounded-full shadow-elevated cursor-pointer hover:-translate-y-0.5 hover:bg-accent-hover transition-all duration-200 ease-out"
       >
         <div className="flex items-center px-5 py-3 gap-2">
-          <Plus strokeWidth={2} className={`h-5 w-5 transition-transform duration-200 ${toggle ? "rotate-45" : ""}`} />
+          <Plus strokeWidth={2} className={`h-5 w-5 transition-transform duration-200 text-white dark:text-accent ${toggle ? "rotate-45" : ""}`} />
           <span className="font-medium text-sm">New</span>
         </div>
 
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`absolute bottom-full right-0 mb-2 w-48 border border-gray-200 bg-white rounded-xl shadow-elevated p-1 text-foreground origin-bottom-right transition-all duration-200 ease-out ${toggle ? "opacity-100 scale-100 translate-y-0" : "pointer-events-none opacity-0 scale-95 translate-y-2"}`}
+          className={`absolute bottom-full right-0 mb-2 w-48 border border-border bg-card rounded-xl shadow-elevated p-1.5 text-foreground origin-bottom-right transition-all duration-200 ease-out ${toggle ? "opacity-100 scale-100 translate-y-0" : "pointer-events-none opacity-0 scale-95 translate-y-2"}`}
         >
-          <p
+          <div
             onClick={() => {
               if (!isAdmin && (!path || path.length === 0)) {
                 setContexterrormodal(true);
@@ -157,10 +159,10 @@ export default function Content({ children }) {
                 dialogref.current.click();
               }
             }}
-            className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm"
+            className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 rounded-lg hover:bg-muted flex items-center text-sm transition-colors duration-150"
           >
-            <FilePlus className="mr-3 w-4 h-4" strokeWidth={1.5} />
-            File Upload
+            <FilePlus className="mr-3 w-4 h-4 text-accent" strokeWidth={1.8} />
+            <span>File Upload</span>
             <input
               type="file"
               multiple
@@ -170,7 +172,7 @@ export default function Content({ children }) {
               onClick={(e) => { e.target.value = null; }}
               onChange={handleUpload}
             />
-          </p>
+          </div>
           {canCreateFolder && (
             <div
               onClick={() => {
@@ -183,10 +185,10 @@ export default function Content({ children }) {
                   setContextfolder("");
                 }
               }}
-              className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 m-1 rounded-md hover:bg-gray-100 flex items-center text-sm"
+              className="text-foreground font-normal hover:cursor-pointer px-3 py-2.5 rounded-lg hover:bg-muted flex items-center text-sm transition-colors duration-150"
             >
-              <FolderPlus className="mr-3 w-4 h-4" strokeWidth={1.5} />
-              New folder
+              <FolderPlus className="mr-3 w-4 h-4 text-status-warning" strokeWidth={1.8} />
+              <span>New folder</span>
             </div>
           )}
         </div>

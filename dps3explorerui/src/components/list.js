@@ -1,6 +1,5 @@
 "use client";
-import Image from "next/image";
-import FolderIcon from "../app/assets/folder.svg";
+import FolderIcon from "./FolderIcon";
 import { useContext, useState } from "react";
 import { useMutation, useQuery } from "react-query";
 import { ApplicationContext } from "@/services/ContextProvider";
@@ -82,7 +81,7 @@ export default function List({ name, type, size, keypath, last_modified, created
           {type === "file" ? (
             <FileTypeIcon filename={name} colorMap={colorMap} />
           ) : (
-            <Image width={25} className="mr-2" src={FolderIcon} alt="Folder" />
+            <FolderIcon className="w-5 h-5 mr-2 shrink-0" />
           )}
           {name}
           {type === "folder" && created_by_role && (

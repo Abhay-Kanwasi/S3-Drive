@@ -7,6 +7,7 @@ import { ApplicationContext } from "@/services/ContextProvider";
 import { getExplorerAccess, isS3ExplorerDeactivated } from "@/services/access";
 import { getSelectedUserId, setSelectedUserId } from "@/services/auth";
 import S3ExplorerAccessBlocked from "@/components/S3ExplorerAccessBlocked";
+import ThemeToggle from "@/components/ThemeToggle";
 import { AdminProvider, useAdminMe } from "./AdminContext";
 
 // Approval review/confirm renders without admin gating (handles its own auth UX).
@@ -269,6 +270,9 @@ function AdminLayoutInner({ children, skipAccessCheck = false }) {
               <p className="text-[10px] text-muted-foreground capitalize">
                 {isGlobalAdmin ? roleLabel.replace("_", " ") : "Org Admin"}
               </p>
+            </div>
+            <div className="ml-auto">
+              <ThemeToggle />
             </div>
           </div>
           <button

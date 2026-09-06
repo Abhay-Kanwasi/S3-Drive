@@ -3,8 +3,7 @@
 import { File, Folder, Star } from "lucide-react";
 import ShieldBadge from "./ShieldBadge";
 import { FileSpreadsheet, FileJson, FileArchive, FileText, FileImage } from "lucide-react";
-import Image from "next/image";
-import FolderIcon from "../app/assets/folder.svg";
+import FolderIcon from "./FolderIcon";
 
 const ICON_MAP = {
   csv: FileSpreadsheet, xlsx: FileSpreadsheet, xls: FileSpreadsheet,
@@ -60,7 +59,7 @@ export default function FileCard({ item, onOpen, onSelect, onContextMenu, colorM
         )}
         <div className="h-14 flex items-center justify-center">
           {isFolder
-            ? <Image width={32} height={32} src={FolderIcon} alt="Folder" />
+            ? <FolderIcon className="w-9 h-9" />
             : <FileTypeIcon filename={item.name} colorMap={colorMap} />}
         </div>
         <p className="truncate w-32 text-center text-sm">{item.name}</p>

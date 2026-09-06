@@ -3,8 +3,7 @@
 import { File, Folder, Star } from "lucide-react";
 import ShieldBadge from "./ShieldBadge";
 import { FileSpreadsheet, FileJson, FileArchive, FileText, FileImage } from "lucide-react";
-import Image from "next/image";
-import FolderIcon from "../app/assets/folder.svg";
+import FolderIcon from "./FolderIcon";
 
 const ICON_MAP = {
   csv: FileSpreadsheet, xlsx: FileSpreadsheet, xls: FileSpreadsheet,
@@ -40,7 +39,7 @@ export default function FileRow({ item, onOpen, onSelect, onContextMenu, colorMa
     >
       <div className="w-2/3 text-foreground inline-flex overflow-hidden text-ellipsis items-center">
         {isFolder
-          ? <Image width={25} className="mr-2" src={FolderIcon} alt="Folder" />
+          ? <FolderIcon className="w-5 h-5 mr-2 shrink-0" />
           : <FileTypeIcon filename={item.name} colorMap={colorMap} />}
         {item.name}
         {inaccessible && <span className="ml-2 text-xs text-muted-foreground">No longer accessible</span>}
