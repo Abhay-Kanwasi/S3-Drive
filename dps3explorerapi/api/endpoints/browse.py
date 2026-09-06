@@ -13,8 +13,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
-from fastapi import Header
-
 from core.audit import audit_log
 from core.auth import CurrentUser, get_current_user, ADMIN_ROLE_IDS, GLOBAL_ADMIN_ROLE_IDS
 from core.user_access import effective_s3_access, is_s3_deactivated
@@ -98,20 +96,22 @@ def _accessible_orgs_for_user(user: CurrentUser, db: Session) -> list:
 
 @router.get("/me")
 async def explorer_access_status(
+    request: Request,
     db: Session = Depends(get_db),
-    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 ):
     """
     Return S3 Explorer access status without blocking deactivated users.
     Used by the UI to show a clear message before other API calls fail with 403.
-    Does not use get_current_user so deactivated accounts can still see why.
+    Reads the access cookie directly so deactivated accounts can still see why.
     """
-    if not settings.DEV_AUTH_MODE:
-        raise HTTPException(status_code=501, detail="DEV_AUTH_MODE is disabled; real auth is not configured yet")
-    if not x_user_id or not str(x_user_id).strip().isdigit():
-        raise HTTPException(status_code=401, detail="Missing or invalid X-User-Id header")
+    from core.auth import ACCESS_COOKIE, _decode_token
 
-    user = db.query(User).filter(User.id == int(str(x_user_id).strip())).first()
+    token = request.cookies.get(ACCESS_COOKIE)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_id = _decode_token(token, "access")
+    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
 

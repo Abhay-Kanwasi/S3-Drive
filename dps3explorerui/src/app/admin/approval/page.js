@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ShieldCheck, ShieldX, AlertCircle } from "lucide-react";
 import { getApprovalReview, submitApprovalDecision } from "@/services/admin";
-import { getSelectedUserId, setSelectedUserId } from "@/services/auth";
 
 export default function ApprovalReviewPage() {
   return (
@@ -25,8 +24,6 @@ function ApprovalReviewContent() {
   const [review, setReview] = useState(null);
   const [reviewError, setReviewError] = useState("");
   const [reviewLoading, setReviewLoading] = useState(true);
-  const [needsUser, setNeedsUser] = useState(false);
-  const [devUserDraft, setDevUserDraft] = useState(() => getSelectedUserId() || "");
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -35,11 +32,6 @@ function ApprovalReviewContent() {
   useEffect(() => {
     if (!id || !token || !action) {
       setReviewError("Missing approval link parameters.");
-      setReviewLoading(false);
-      return;
-    }
-    if (!getSelectedUserId()) {
-      setNeedsUser(true);
       setReviewLoading(false);
       return;
     }
@@ -55,7 +47,7 @@ function ApprovalReviewContent() {
       } catch (e) {
         if (cancelled) return;
         if (e?.status === 401) {
-          setNeedsUser(true);
+          router.replace("/login");
         } else {
           setReviewError(e?.message || "Failed to load approval");
         }
@@ -81,7 +73,7 @@ function ApprovalReviewContent() {
       setResult(data);
     } catch (e) {
       if (e?.status === 401) {
-        setNeedsUser(true);
+        router.replace("/login");
       } else {
         setSubmitError(e?.message || "Failed to submit");
       }
@@ -90,53 +82,10 @@ function ApprovalReviewContent() {
     }
   };
 
-  const handleSaveUser = () => {
-    const uid = String(devUserDraft || "").trim();
-    if (!uid || !/^\d+$/.test(uid)) {
-      alert("Enter a numeric user id");
-      return;
-    }
-    setSelectedUserId(uid);
-    window.location.reload();
-  };
-
   if (reviewLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (needsUser) {
-    return (
-      <div className="max-w-xl mx-auto">
-        <div className="rounded-lg border border-status-warning/30 bg-status-warning-bg p-5 space-y-3">
-          <p className="text-sm font-semibold text-status-warning">
-            Select an approver user id
-          </p>
-          <p className="text-sm text-status-warning/80">
-            Temporary stand-in for real auth. Enter the approver&apos;s user id,
-            save, then continue this approval. Only the designated approver can
-            approve or reject.
-          </p>
-          <label className="block text-sm font-medium text-status-warning">
-            User ID
-            <input
-              type="text"
-              inputMode="numeric"
-              value={devUserDraft}
-              onChange={(e) => setDevUserDraft(e.target.value)}
-              className="mt-1.5 w-full px-3 py-2 border border-status-warning/50 rounded-lg text-sm bg-white outline-none"
-            />
-          </label>
-          <button
-            onClick={handleSaveUser}
-            className="mt-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-status-warning text-white hover:bg-status-warning"
-          >
-            Save &amp; reload
-          </button>
-        </div>
       </div>
     );
   }

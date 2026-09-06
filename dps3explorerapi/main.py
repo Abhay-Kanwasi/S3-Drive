@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+import secrets
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -18,37 +21,34 @@ app = FastAPI(
     lifespan=app_init,
 )
 
+# CORS: explicit origins required when allow_credentials=True.
+# Populate BACKEND_CORS_ORIGINS in .env with the frontend origin(s).
+_origins = [origin.strip().rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
+_origins = _origins or ["http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.middleware("http")
+async def csrf_protection(request: Request, call_next):
+    unsafe = request.method in {"POST", "PUT", "PATCH", "DELETE"}
+    login_request = request.url.path.endswith("/auth/google")
+    if unsafe and not login_request and settings.ENV != "test":
+        cookie_token = request.cookies.get("s3exp_csrf")
+        header_token = request.headers.get(settings.CSRF_HEADER_NAME)
+        if not cookie_token or not header_token or not secrets.compare_digest(cookie_token, header_token):
+            return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+    return await call_next(request)
+
+
+
+
 @app.get(f"{settings.API_V1_STR}/health")
 def healthCheck():
     return {"status": "healthy"}
-
-
-# Set all CORS enabled origins
-if settings.BACKEND_CORS_ORIGINS:
-    # app.add_middleware(
-    #     CORSMiddleware,
-    #     # Trailing slash causes CORS failures from these supported domains
-    #     allow_origins=[
-    #         str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS
-    #     ],
-    #     allow_credentials=True,
-    #     allow_methods=["*"],
-    #     allow_headers=["*"],
-    # )
-    app.add_middleware(
-        CORSMiddleware,
-        # Trailing slash causes CORS failures from these supported domains
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )

@@ -1,7 +1,7 @@
 "use client";
-import { createContext, useState, useEffect } from "react";
-import { getSelectedUserId, setSelectedUserId as persistUserId } from "@/services/auth";
+import { createContext, useEffect, useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
+import { getSessionUser } from "@/services/auth";
 
 export const ApplicationContext = createContext(null);
 
@@ -10,24 +10,20 @@ export function ContextProvider({ children }) {
   const [folder, setFolder] = useState("");
   const [userid, setUserid] = useState();
   const [username, setUsername] = useState();
-  const [currentUserId, setCurrentUserIdState] = useState("");
+  const [sessionUser, setSessionUser] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   useEffect(() => {
-    const stored = getSelectedUserId();
-    if (stored) {
-      setCurrentUserIdState(stored);
-      setUserid(Number(stored));
-    }
+    getSessionUser()
+      .then((user) => {
+        setSessionUser(user);
+        setUserid(user.id);
+        setUsername(user.user_name);
+        setIsAdmin(Boolean(user.is_admin));
+      })
+      .catch(() => setSessionUser(null))
+      .finally(() => setSessionLoading(false));
   }, []);
-
-  const setCurrentUserId = (userId) => {
-    const id = userId == null ? "" : String(userId).trim();
-    persistUserId(id || null);
-    setCurrentUserIdState(id);
-    if (id && /^\d+$/.test(id)) {
-      setUserid(Number(id));
-    }
-  };
 
   const [path, setPath] = useState("");
   const [basePath, setBasePath] = useState("");
@@ -77,8 +73,8 @@ export function ContextProvider({ children }) {
         setUserid,
         username,
         setUsername,
-        currentUserId,
-        setCurrentUserId,
+        sessionUser,
+        sessionLoading,
         folder,
         setFolder,
         path,

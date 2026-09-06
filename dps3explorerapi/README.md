@@ -12,9 +12,13 @@ Identity and RBAC live in a single owned Postgres schema (`explorer`). There is 
 4. **4-Eyes Approval** for sensitive ops (group delete with grants, un-onboard)
 5. **Audit Log** in S3 (hot/cold tiers)
 
-### Temporary auth (dev)
+### Authentication
 
-When `DEV_AUTH_MODE=true` (default), callers send `X-User-Id: <integer>`. This is a stand-in for real auth — replace before any public deployment.
+Users are provisioned by an administrator and sign in with a verified Google account
+whose email matches the provisioned user. The API links that first login to Google's
+stable subject and then uses short-lived JWT access and refresh cookies. Cookies are
+HttpOnly; unsafe requests must include the readable CSRF cookie value in
+`X-CSRF-Token`.
 
 ## Local Setup
 
@@ -27,24 +31,22 @@ When `DEV_AUTH_MODE=true` (default), callers send `X-User-Id: <integer>`. This i
 ### Steps
 
 ```bash
-cd dps3explorerapi
+cd ..
 
 cp .env.example .env
-# Fill in: POSTGRES_DATABASE_URI, BUCKET, AWS keys, SMTP, BOOTSTRAP_ADMIN_EMAIL
+# Fill in: POSTGRES_DATABASE_URI, BUCKET, Google OAuth, S3 keys, SMTP, and bootstrap email
 
 # For direct/non-Compose deployments only:
 alembic upgrade head
 
 # Run with Docker Compose (Alembic and the bootstrap super_admin run automatically)
-# (from S3-Drive/)
-cd ..
 docker compose up --build
 
 # For direct/non-Compose deployments, bootstrap the first super_admin manually:
 # python scripts/create_admin.py
 
 # Or run directly
-pip install -r requirements.txt
+pip install -r dps3explorerapi/requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -59,7 +61,11 @@ Health: `GET /api/v2/explorer/health`
 | `BUCKET` | Yes | Default S3 bucket |
 | `env` / `ENV` | No | Environment label (default `dev`) |
 | `DB_SCHEMA` | No | Schema name (default `explorer`) |
-| `DEV_AUTH_MODE` | No | Header auth stand-in (default `true`) |
+| `GOOGLE_CLIENT_ID` | Yes | Google OAuth web client ID |
+| `JWT_SECRET_KEY` | Yes | Secret used to sign session JWTs |
+| `BACKEND_CORS_ORIGINS` | Yes | Explicit credentialed frontend origins |
+| `COOKIE_SECURE` | Production | Set `true` when using HTTPS |
+| `COOKIE_SAMESITE` | No | Session cookie SameSite policy |
 | `BOOTSTRAP_ADMIN_EMAIL` | For bootstrap | Used by `scripts/create_admin.py` |
 | `BOOTSTRAP_ADMIN_USERNAME` | No | Default `admin` |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Dev only | Omit in prod — use IAM role |

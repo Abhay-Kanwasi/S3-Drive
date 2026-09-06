@@ -1,4 +1,4 @@
-# Base stack (API + UI + DB). Primary switch in dps3explorerapi/.env:
+# Base stack (API + UI + DB). All service configuration is loaded from .env:
 #   S3_ENDPOINT_URL empty → real AWS (same boto3 code; keys optional / IAM OK)
 #   S3_ENDPOINT_URL set   → MinIO / LocalStack
 #
@@ -6,7 +6,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.minio.yml up -d --build
 #
 # Real AWS:
-#   clear S3_ENDPOINT_URL in dps3explorerapi/.env, then:
+#   clear S3_ENDPOINT_URL in .env, then:
 #   docker compose up -d --build
 
 services:
@@ -64,8 +64,8 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - path: ./dps3explorerapi/.env
-        required: false
+      - path: ./.env
+        required: true
     command: ["alembic", "upgrade", "head"]
 
   bootstrap:
@@ -75,8 +75,8 @@ services:
       migrate:
         condition: service_completed_successfully
     env_file:
-      - path: ./dps3explorerapi/.env
-        required: false
+      - path: ./.env
+        required: true
     command: ["python", "scripts/create_admin.py"]
 
   api:
@@ -95,8 +95,8 @@ services:
       minio-init:
         condition: service_completed_successfully
     env_file:
-      - path: ./dps3explorerapi/.env
-        required: false
+      - path: ./.env
+        required: true
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v2/explorer/health"]
       interval: 30s
@@ -111,8 +111,9 @@ services:
       context: ./dps3explorerui
       args:
         NEXT_PUBLIC_HOSTNAME: ${NEXT_PUBLIC_HOSTNAME:-http://localhost:8000/api/v2}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     ports:
-      - "3000:80"
+      - "5173:80"
     depends_on:
       api:
         condition: service_healthy

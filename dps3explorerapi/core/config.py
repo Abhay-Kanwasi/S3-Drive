@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, Field, field_validator, AliasChoices
 
@@ -6,15 +6,7 @@ from pydantic import AnyHttpUrl, Field, field_validator, AliasChoices
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v2/explorer"
     SERVER_NAME: str = ""
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
-
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    BACKEND_CORS_ORIGINS: str = ""
 
     PROJECT_NAME: str = "S3 Explorer"
 
@@ -42,10 +34,18 @@ class Settings(BaseSettings):
     TENANTID: str     = Field(default="", validation_alias=AliasChoices("TENANTID",     "tenantId"))
     USERID: str       = Field(default="", validation_alias=AliasChoices("USERID",       "userId"))
 
-    # TEMPORARY header auth stand-in (X-User-Id). Replace before public deploy.
-    DEV_AUTH_MODE: bool = True
     BOOTSTRAP_ADMIN_EMAIL: str = ""
     BOOTSTRAP_ADMIN_USERNAME: str = "admin"
+
+    # Google OAuth / JWT session
+    GOOGLE_CLIENT_ID: str = ""
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    COOKIE_SECURE: bool = False  # True in production (HTTPS)
+    COOKIE_SAMESITE: str = "lax"
+    CSRF_HEADER_NAME: str = "X-CSRF-Token"
 
     SMTP_HOST: str = ""
     # Accept SMTP_PORT or legacy PORT (some .env files still use PORT=587).
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     DEACTIVATION_GRACE_DAYS: int = 30
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = {"env_file": "../.env", "extra": "ignore"}
 
 
 settings = Settings()

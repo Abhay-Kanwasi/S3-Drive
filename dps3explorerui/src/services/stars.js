@@ -1,4 +1,4 @@
-import { getAuthHeaders } from "@/services/auth";
+import { getAuthHeaders, apiFetch } from "@/services/auth";
 
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const starsBase = `${API_HOSTNAME}/explorer/stars`;
@@ -10,7 +10,7 @@ function throwHttpError(response, fallback) {
 }
 
 export const listStars = async (orgId) => {
-  const response = await fetch(`${starsBase}?org_id=${encodeURIComponent(orgId)}`, {
+  const response = await apiFetch(`${starsBase}?org_id=${encodeURIComponent(orgId)}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
@@ -23,7 +23,7 @@ export const listStars = async (orgId) => {
 };
 
 export const starItem = async ({ orgId, key, type, name, size, last_modified }) => {
-  const response = await fetch(starsBase, {
+  const response = await apiFetch(starsBase, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, key, type, name, size, last_modified }),
@@ -39,7 +39,7 @@ export const starItem = async ({ orgId, key, type, name, size, last_modified }) 
 
 export const unstarItem = async ({ orgId, key }) => {
   const params = new URLSearchParams({ org_id: String(orgId), key });
-  const response = await fetch(`${starsBase}?${params.toString()}`, {
+  const response = await apiFetch(`${starsBase}?${params.toString()}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });

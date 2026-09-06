@@ -1,11 +1,11 @@
-import { getAuthHeaders } from "@/services/auth";
+import { getAuthHeaders, apiFetch } from "@/services/auth";
 
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const browseHostname = `${API_HOSTNAME}/explorer/browse`;
 
 /** Get storage usage for an org. */
 export const getOrgStorage = async (orgId) => {
-  const response = await fetch(`${browseHostname}/orgs/${orgId}/storage`, {
+  const response = await apiFetch(`${browseHostname}/orgs/${orgId}/storage`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch storage");
@@ -13,7 +13,7 @@ export const getOrgStorage = async (orgId) => {
 };
 
 export const browseFolders = async (orgId, prefix = "") => {
-  const response = await fetch(`${browseHostname}/browse`, {
+  const response = await apiFetch(`${browseHostname}/browse`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, prefix }),
@@ -27,7 +27,7 @@ export const browseFolders = async (orgId, prefix = "") => {
 
 /** List orgs the current user can access (sidebar). */
 export const listAccessibleOrgs = async () => {
-  const response = await fetch(`${browseHostname}/orgs`, {
+  const response = await apiFetch(`${browseHostname}/orgs`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
@@ -38,7 +38,7 @@ export const listAccessibleOrgs = async () => {
 };
 
 export const createFolder = async (orgId, parentPrefix, name) => {
-  const response = await fetch(`${browseHostname}/folders/create`, {
+  const response = await apiFetch(`${browseHostname}/folders/create`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, parent_prefix: parentPrefix, name }),
@@ -53,7 +53,7 @@ export const createFolder = async (orgId, parentPrefix, name) => {
 };
 
 export const renameFolder = async (orgId, prefix, newName) => {
-  const response = await fetch(`${browseHostname}/folders/rename`, {
+  const response = await apiFetch(`${browseHostname}/folders/rename`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, prefix, new_name: newName }),
@@ -66,7 +66,7 @@ export const renameFolder = async (orgId, prefix, newName) => {
 };
 
 export const deleteFolder = async (orgId, prefix) => {
-  const response = await fetch(`${browseHostname}/folders/delete`, {
+  const response = await apiFetch(`${browseHostname}/folders/delete`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, prefix }),
@@ -79,7 +79,7 @@ export const deleteFolder = async (orgId, prefix) => {
 };
 
 export const listTrash = async (orgId) => {
-  const response = await fetch(`${browseHostname}/trash`, {
+  const response = await apiFetch(`${browseHostname}/trash`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, prefix: "" }),
@@ -92,7 +92,7 @@ export const listTrash = async (orgId) => {
 };
 
 export const restoreFromTrash = async (orgId, trashKey) => {
-  const response = await fetch(`${browseHostname}/trash/restore`, {
+  const response = await apiFetch(`${browseHostname}/trash/restore`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, trash_key: trashKey }),
@@ -105,7 +105,7 @@ export const restoreFromTrash = async (orgId, trashKey) => {
 };
 
 export const purgeFromTrash = async (orgId, trashKey) => {
-  const response = await fetch(`${browseHostname}/trash/purge`, {
+  const response = await apiFetch(`${browseHostname}/trash/purge`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, trash_key: trashKey }),
@@ -122,7 +122,7 @@ export const purgeFromTrash = async (orgId, trashKey) => {
 const filesHostname = `${API_HOSTNAME}/explorer/files`;
 
 export const renameFile = async (orgId, fileKey, newName, basePath) => {
-  const response = await fetch(`${filesHostname}/rename`, {
+  const response = await apiFetch(`${filesHostname}/rename`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, file_key: fileKey, new_name: newName, basePath }),
@@ -135,7 +135,7 @@ export const renameFile = async (orgId, fileKey, newName, basePath) => {
 };
 
 export const copyFile = async (orgId, fileKey, targetPrefix, basePath) => {
-  const response = await fetch(`${filesHostname}/copy`, {
+  const response = await apiFetch(`${filesHostname}/copy`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, file_key: fileKey, target_prefix: targetPrefix, basePath }),
@@ -148,7 +148,7 @@ export const copyFile = async (orgId, fileKey, targetPrefix, basePath) => {
 };
 
 export const moveFile = async (orgId, fileKey, targetPrefix, basePath) => {
-  const response = await fetch(`${filesHostname}/move`, {
+  const response = await apiFetch(`${filesHostname}/move`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id: orgId, file_key: fileKey, target_prefix: targetPrefix, basePath }),
