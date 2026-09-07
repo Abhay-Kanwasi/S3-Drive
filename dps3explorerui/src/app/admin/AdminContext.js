@@ -2,24 +2,28 @@
 import { createContext, useContext } from "react";
 import { useQuery } from "react-query";
 import { getAdminMe } from "@/services/admin";
-import { getSelectedUserId } from "@/services/auth";
+import { getSessionUser } from "@/services/auth";
 
 const AdminCtx = createContext(null);
 
 export function AdminProvider({ children }) {
-  const userId = typeof window !== "undefined" ? getSelectedUserId() : null;
+  const { data: sessionUser, isLoading: sessionLoading } = useQuery(
+    ["session-user"],
+    getSessionUser,
+    { retry: false, staleTime: 5 * 60 * 1000 },
+  );
   const { data: me, isLoading, isError, error } = useQuery(
-    ["admin-me", userId],
+    ["admin-me"],
     getAdminMe,
     {
-      enabled: Boolean(userId),
+      enabled: Boolean(sessionUser),
       retry: false,
       staleTime: 5 * 60 * 1000,
     },
   );
 
   return (
-    <AdminCtx.Provider value={{ me, isLoading, isError, error, userId }}>
+    <AdminCtx.Provider value={{ me, isLoading: isLoading || sessionLoading, isError, error, userId: sessionUser?.id }}>
       {children}
     </AdminCtx.Provider>
   );

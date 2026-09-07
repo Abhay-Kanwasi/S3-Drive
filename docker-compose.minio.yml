@@ -2,9 +2,9 @@
 #   docker compose -f docker-compose.yml -f docker-compose.minio.yml up -d --build
 #
 # This overlay:
-#   1) starts MinIO (+ creates BUCKET / TRASH_BUCKET / AUDIT_BUCKET from app .env)
+#   1) starts MinIO (+ creates BUCKET / TRASH_BUCKET / AUDIT_BUCKET from root .env)
 #   2) points the API container at http://minio:9000 (not localhost)
-# Bucket/region values are NOT overridden here — they come from dps3explorerapi/.env
+# Bucket/region values are NOT overridden here — they come from root .env
 
 services:
   minio:
@@ -34,8 +34,8 @@ services:
       minio:
         condition: service_healthy
     env_file:
-      - path: ./dps3explorerapi/.env
-        required: false
+      - path: ./.env
+        required: true
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

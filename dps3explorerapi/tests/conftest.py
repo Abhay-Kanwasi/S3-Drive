@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ["POSTGRES_DATABASE_URI"] = "sqlite:///"
 os.environ["BUCKET"] = "test-bucket"
 os.environ["env"] = "test"
-os.environ["DEV_AUTH_MODE"] = "true"
 os.environ["DB_SCHEMA"] = "explorer"
 os.environ["TRASH_BUCKET"] = "test-trash-bucket"
 os.environ["AWS_ACCESS_KEY_ID"] = "testing"
@@ -31,6 +30,7 @@ os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
 os.environ["AWS_SECURITY_TOKEN"] = "testing"
 os.environ["AWS_SESSION_TOKEN"] = "testing"
 os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-tests-only"
 
 import boto3
 import pytest

@@ -1,22 +1,12 @@
-import { authHeaders, getSelectedUserId } from "@/services/auth";
+import { getAuthHeaders, apiFetch } from "@/services/auth";
 
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 export const hostname = `${API_HOSTNAME}/explorer`;
 export const CHUNK_SIZE = 14 * 1024 * 1024;
 
-function currentUserIdPayload() {
-  const id = getSelectedUserId();
-  return id != null ? Number(id) : 0;
-}
-
-function currentUserIdString() {
-  const id = getSelectedUserId();
-  return id != null ? String(id) : "0";
-}
-
 export const getUploadConstraints = async () => {
   const url = `${hostname}/services/upload-constraints`;
-  const response = await fetch(url, { headers: authHeaders() });
+  const response = await apiFetch(url, { headers: getAuthHeaders() });
   if (!response.ok) throw new Error("Failed to fetch upload constraints");
   return response.json();
 };
@@ -29,7 +19,7 @@ export const getUAMFolderContent = async () => {
 export const getListofFolder = async () => {
   try {
     const url = `${hostname}/services/recycle`;
-    const response = await fetch(url, { headers: authHeaders() });
+    const response = await apiFetch(url, { headers: getAuthHeaders() });
     return response.json();
   } catch (err) {
     return Promise.resolve([]);
@@ -39,7 +29,7 @@ export const getListofFolder = async () => {
 export const restoreItems = async (path) => {
   try {
     const url = `${hostname}/services/restore?key=${path}`;
-    const response = await fetch(url, { headers: authHeaders() });
+    const response = await apiFetch(url, { headers: getAuthHeaders() });
     return response.json();
   } catch (err) {
     return Promise.resolve([]);
@@ -49,14 +39,10 @@ export const restoreItems = async (path) => {
 export const checkIfFolderExists = async (foldername, basePath) => {
   try {
     const url = `${hostname}/services/event`;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        name: foldername,
-        user_id: currentUserIdPayload(),
-        basePath: basePath,
-      }),
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name: foldername, basePath }),
     });
     return response;
   } catch (err) {
@@ -67,14 +53,10 @@ export const checkIfFolderExists = async (foldername, basePath) => {
 export const createFolder = async (foldername, basePath) => {
   try {
     const url = `${hostname}/services/folders`;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        name: foldername,
-        user_id: currentUserIdPayload(),
-        basePath: basePath,
-      }),
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name: foldername, basePath }),
     });
     return response;
   } catch (err) {
@@ -85,14 +67,10 @@ export const createFolder = async (foldername, basePath) => {
 export const getFolderContent = async (foldername, basePath) => {
   try {
     const url = `${hostname}/services/content`;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        name: foldername,
-        user_id: currentUserIdPayload(),
-        basePath: basePath,
-      }),
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name: foldername, basePath }),
     });
     return response.json();
   } catch (err) {
@@ -100,22 +78,16 @@ export const getFolderContent = async (foldername, basePath) => {
   }
 };
 
-export const delete_by_filename = async (
-  username,
-  _filename,
-  _file_key,
-  basePath
-) => {
+export const delete_by_filename = async (username, _filename, _file_key, basePath) => {
   const url = `${hostname}/services/delete`;
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json" }),
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       author: username,
-      userid: currentUserIdString(),
       filename: _filename,
       file_key: _file_key,
-      basePath: basePath,
+      basePath,
     }),
   });
   if (!response.ok) {
@@ -130,25 +102,14 @@ export const totalChunks = (FILE_SIZE) => {
     : Math.floor(FILE_SIZE / CHUNK_SIZE) + 1;
 };
 
-export const uploadByPart = async (
-  file,
-  filepath,
-  _author,
-  basePath,
-  fileSize
-) => {
+export const uploadByPart = async (file, filepath, _author, basePath, fileSize) => {
   try {
     const url = `${hostname}/services/initiate`;
-    const body = {
-      userid: currentUserIdPayload(),
-      name: filepath,
-      author: _author,
-      basePath: basePath,
-    };
+    const body = { name: filepath, author: _author, basePath };
     if (fileSize != null) body.file_size = fileSize;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: getAuthHeaders(),
       body: JSON.stringify(body),
     });
     return response;
@@ -157,13 +118,7 @@ export const uploadByPart = async (
   }
 };
 
-export const uploadChunks = async (
-  filechunk,
-  uploadId,
-  counter,
-  filePath,
-  basePath
-) => {
+export const uploadChunks = async (filechunk, uploadId, counter, filePath, basePath) => {
   const formData = new FormData();
   formData.append("file", filechunk);
   formData.append("path", filePath);
@@ -173,11 +128,7 @@ export const uploadChunks = async (
   const url = `${hostname}/services/chunks`;
   let response;
   try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: authHeaders(),
-      body: formData,
-    });
+    response = await apiFetch(url, { method: "POST", body: formData });
   } catch (err) {
     const message = String(err?.message || "").toLowerCase();
     if (message.includes("failed to fetch")) {
@@ -190,9 +141,7 @@ export const uploadChunks = async (
 
   if (!response.ok) {
     const errJson = await response.json().catch(() => ({}));
-    const detail =
-      errJson?.detail ||
-      `Chunk ${counter} upload failed (${response.status}).`;
+    const detail = errJson?.detail || `Chunk ${counter} upload failed (${response.status}).`;
     throw new Error(detail);
   }
 
@@ -203,27 +152,19 @@ export const uploadChunks = async (
   return data;
 };
 
-export const finishUpload = async (
-  file_name,
-  file_author,
-  filepath,
-  uploadId,
-  e_tags,
-  basePath
-) => {
+export const finishUpload = async (file_name, file_author, filepath, uploadId, e_tags, basePath) => {
   try {
     const url = `${hostname}/services/finalised`;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         filename: file_name,
         author: file_author,
         file_key: filepath,
         uploadID: uploadId,
         e_tag: e_tags,
-        userid: currentUserIdPayload(),
-        basePath: basePath,
+        basePath,
       }),
     });
     return response;
@@ -232,14 +173,10 @@ export const finishUpload = async (
   }
 };
 
-export const download_files = async (
-  _filename,
-  _file_key,
-  basePath
-) => {
+export const download_files = async (_filename, _file_key, basePath) => {
   try {
     const url = `${hostname}/services/download?file_key=${_file_key}&filename=${_filename}&basePath=${basePath}`;
-    const response = await fetch(url, { headers: authHeaders() });
+    const response = await apiFetch(url, { headers: getAuthHeaders() });
     return response;
   } catch (err) {
     return Promise.resolve([]);
@@ -249,7 +186,7 @@ export const download_files = async (
 export const metadata_endpoint = async (_file_key, tag, basePath) => {
   try {
     const url = `${hostname}/services/meta?file_Key=${_file_key}&tag=${tag}&basePath=${basePath}`;
-    const response = await fetch(url, { headers: authHeaders() });
+    const response = await apiFetch(url, { headers: getAuthHeaders() });
     return response.json();
   } catch (err) {
     return Promise.resolve([]);
@@ -269,13 +206,13 @@ export const isViewableFile = (filename) => {
 export const getFilePreview = async (fileKey, basePath, page = 1, pageSize = 50, sheet = null) => {
   const params = new URLSearchParams({
     file_key: fileKey,
-    basePath: basePath,
+    basePath,
     page: String(page),
     page_size: String(pageSize),
   });
   if (sheet) params.set("sheet", sheet);
   const url = `${hostname}/viewer/preview?${params}`;
-  const response = await fetch(url, { headers: authHeaders() });
+  const response = await apiFetch(url, { headers: getAuthHeaders() });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to load file preview");

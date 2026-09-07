@@ -1,13 +1,11 @@
-import { getAuthHeaders } from "@/services/auth";
+import { getAuthHeaders, apiFetch } from "@/services/auth";
 
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const browseHostname = `${API_HOSTNAME}/explorer/browse`;
 
 /** Access status for current user (does not 403 on S3 deactivation). */
 export const getExplorerAccess = async () => {
-  const response = await fetch(`${browseHostname}/me`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await apiFetch(`${browseHostname}/me`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     const error = new Error(err.detail || "Failed to check access");

@@ -1,10 +1,10 @@
-import { getAuthHeaders } from "@/services/auth";
+import { getAuthHeaders, apiFetch } from "@/services/auth";
 
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const notifBase = `${API_HOSTNAME}/explorer/notifications`;
 
 export const getNotifications = async () => {
-  const response = await fetch(notifBase, {
+  const response = await apiFetch(notifBase, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
@@ -17,7 +17,7 @@ export const getNotifications = async () => {
 
 export const markNotificationsRead = async ({ ids, all }) => {
   const body = all ? { all: true } : { ids };
-  const response = await fetch(`${notifBase}/read`, {
+  const response = await apiFetch(`${notifBase}/read`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -27,7 +27,7 @@ export const markNotificationsRead = async ({ ids, all }) => {
 };
 
 export const dismissNotification = async (id) => {
-  const response = await fetch(`${notifBase}/${id}`, {
+  const response = await apiFetch(`${notifBase}/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });

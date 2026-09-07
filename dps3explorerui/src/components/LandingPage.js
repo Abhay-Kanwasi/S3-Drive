@@ -13,7 +13,6 @@ import EmptyState from "@/components/EmptyState";
 import StorageMeter from "@/components/StorageMeter";
 import { listAccessibleOrgs, browseFolders, getOrgStorage } from "@/services/browse";
 import { getOrganizations, getAdminMe, getAdminUserStats, getAuditEvents } from "@/services/admin";
-import { getSelectedUserId } from "@/services/auth";
 import { getExplorerAccess } from "@/services/access";
 import { ApplicationContext } from "@/services/ContextProvider";
 import { getRecentFiles } from "@/services/localStorage";
@@ -111,8 +110,8 @@ function OrgCard({ org, router, isAdmin }) {
 
 export default function LandingPage() {
   const router = useRouter();
-  const selectedUserId = getSelectedUserId();
-  const { username: ctxUsername, isAdmin: ctxIsAdmin, setUsername, setIsAdmin } = useContext(ApplicationContext);
+  const { sessionUser, sessionLoading, username: ctxUsername, isAdmin: ctxIsAdmin, setUsername, setIsAdmin } = useContext(ApplicationContext);
+  const selectedUserId = sessionUser?.id;
   const [recentFiles, setRecentFiles] = useState([]);
   const openNotifRef = useRef(null);
 
@@ -121,14 +120,14 @@ export default function LandingPage() {
   const { data: access } = useQuery(
     ["explorer-access", selectedUserId],
     getExplorerAccess,
-    { enabled: Boolean(selectedUserId), retry: false, staleTime: 60 * 1000 }
+    { enabled: !sessionLoading && Boolean(sessionUser), retry: false, staleTime: 60 * 1000 }
   );
 
   // getAdminMe returns 403 for non-admins — onError keeps adminMe undefined, treated as not-admin
   const { data: adminMe } = useQuery(
     ["admin-me", selectedUserId],
     getAdminMe,
-    { enabled: Boolean(selectedUserId) && access?.can_access === true, retry: false, staleTime: 5 * 60 * 1000, onError: () => {} }
+    { enabled: !sessionLoading && Boolean(sessionUser) && access?.can_access === true, retry: false, staleTime: 5 * 60 * 1000, onError: () => {} }
   );
 
   // Once access resolves, if adminMe is still undefined it means 403 → not admin
@@ -153,7 +152,7 @@ export default function LandingPage() {
   const { data: notifData } = useQuery(
     ["notifications", selectedUserId],
     getNotifications,
-    { enabled: Boolean(selectedUserId) && access?.can_access === true, staleTime: 60_000, retry: false, onError: () => {} }
+    { enabled: !sessionLoading && Boolean(sessionUser) && access?.can_access === true, staleTime: 60_000, retry: false, onError: () => {} }
   );
   const unreadCount = notifData?.unread_count ?? 0;
   const notifItems = (notifData?.items ?? []).slice(0, 4);
@@ -163,7 +162,7 @@ export default function LandingPage() {
   const { data: auditData } = useQuery(
     ["landing-audit", selectedUserId],
     () => getAuditEvents({ dateFrom: todayStr, dateTo: todayStr, pageSize: 5 }),
-    { enabled: Boolean(selectedUserId) && resolvedIsAdmin, staleTime: 60_000, retry: false, onError: () => {} }
+    { enabled: !sessionLoading && Boolean(sessionUser) && resolvedIsAdmin, staleTime: 60_000, retry: false, onError: () => {} }
   );
   const recentAuditEvents = auditData?.events ?? [];
 
@@ -182,7 +181,7 @@ export default function LandingPage() {
       }
       return [];
     },
-    { retry: false, staleTime: 60_000, enabled: Boolean(selectedUserId) && access?.can_access === true }
+    { retry: false, staleTime: 60_000, enabled: !sessionLoading && Boolean(sessionUser) && access?.can_access === true }
   );
 
   useEffect(() => {

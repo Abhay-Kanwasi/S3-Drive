@@ -4,7 +4,8 @@ Standalone Next.js SPA for S3 Explorer — file management, group permissions, a
 
 ## How It Works
 
-Fully standalone (no parent iframe). Temporary identity uses a **Dev user selector** that stores a numeric user id and sends it as `X-User-Id` on every API call. Replace with real auth before public deployment.
+Fully standalone (no parent iframe). Users sign in with Google; the backend maintains
+the authenticated session in HttpOnly cookies.
 
 ### Key Flows
 
@@ -25,8 +26,6 @@ Fully standalone (no parent iframe). Temporary identity uses a **Dev user select
 
 ```bash
 cd dps3explorerui
-cp .env.example .env
-# NEXT_PUBLIC_HOSTNAME=http://localhost:8000/api/v2
 
 npm install
 npm run dev
@@ -41,14 +40,15 @@ UI: `http://localhost:3000/explorer`
 ### Local authentication
 
 1. Bootstrap an admin via API `scripts/create_admin.py`
-2. Open the UI — enter that user id in the **Dev user selector**
-3. Requests send `X-User-Id` automatically
+2. Configure the same Google web client ID in the API and `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+3. Open the UI and sign in with the provisioned Google account
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `NEXT_PUBLIC_HOSTNAME` | Backend API base (e.g. `http://localhost:8000/api/v2`) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth web client ID |
 
 ## Scripts
 

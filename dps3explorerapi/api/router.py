@@ -2,10 +2,11 @@ from fastapi import APIRouter
 
 from api.endpoints import (
     boto_services, browse, uam_services, admin, groups, users, audit,
-    viewer, files, notifications, otp, approval, unonboard, stars,
+    viewer, files, notifications, otp, approval, unonboard, stars, auth,
 )
 
 api_router = APIRouter()
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(boto_services.router, prefix="/services", tags=["services"])
 api_router.include_router(browse.router, prefix="/browse", tags=["browse"])
 api_router.include_router(uam_services.router, prefix="/uam", tags=["uam"])

@@ -14,8 +14,6 @@ export function useTheme() {
       // Accept ONLY "light" or "dark" — ignore corrupted/old/missing values.
       if (stored === "light" || stored === "dark") {
         preferred = stored;
-      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        preferred = "dark";
       }
     } catch (_) {
       // localStorage unavailable (Safari private mode, etc.) — use "light".

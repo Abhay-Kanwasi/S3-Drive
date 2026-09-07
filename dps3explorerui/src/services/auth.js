@@ -1,41 +1,98 @@
 /**
- * Temporary identity stand-in for standalone Explorer.
- * Selected user id is sent as X-User-Id (replace with real auth later).
+ * Cookie-session auth helpers.
+ * Sessions are maintained via HttpOnly cookies set by the backend.
+ * No identity data is stored in localStorage or sent as headers.
  */
 
-const STORAGE_KEY = "explorerUserId";
+const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
+const authBase = `${API_HOSTNAME}/explorer/auth`;
+const CSRF_COOKIE = "s3exp_csrf";
 
-export function getSelectedUserId() {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw == null || String(raw).trim() === "") return null;
-  const id = String(raw).trim();
-  return /^\d+$/.test(id) ? id : null;
+function csrfToken() {
+  if (typeof document === "undefined") return "";
+  return document.cookie
+    .split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${CSRF_COOKIE}=`))
+    ?.slice(CSRF_COOKIE.length + 1) || "";
 }
 
-export function setSelectedUserId(userId) {
-  if (typeof window === "undefined") return;
-  const id = userId == null ? "" : String(userId).trim();
-  if (!id) {
-    localStorage.removeItem(STORAGE_KEY);
-    return;
+/** Exchange a Google credential for session cookies. */
+export async function googleLogin(credential) {
+  const response = await fetch(`${authBase}/google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ credential }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const error = new Error(err.detail || "Login failed");
+    error.status = response.status;
+    throw error;
   }
-  localStorage.setItem(STORAGE_KEY, id);
+  return response.json();
 }
 
-/** Build headers with X-User-Id when a user is selected. */
-export function authHeaders(extraHeaders = {}) {
-  const userId = getSelectedUserId();
+/** Rotate the access token using the refresh cookie. */
+export async function refreshSession() {
+  const response = await fetch(`${authBase}/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "X-CSRF-Token": csrfToken() },
+  });
+  if (!response.ok) throw Object.assign(new Error("Session expired"), { status: response.status });
+  return response.json();
+}
+
+/** Clear session cookies on the backend. */
+export async function logout() {
+  await fetch(`${authBase}/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "X-CSRF-Token": csrfToken() },
+  });
+}
+
+/** Fetch the current authenticated user from the session cookie. */
+export async function getSessionUser() {
+  const response = await fetch(`${authBase}/me`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const error = new Error("Not authenticated");
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+/**
+ * Credentialed fetch — always sends cookies.
+ * Drop-in replacement for plain fetch across all service modules.
+ */
+export function apiFetch(url, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const headers = new Headers(options.headers || {});
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    const token = csrfToken();
+    if (token) headers.set("X-CSRF-Token", token);
+  }
+  return fetch(url, { ...options, headers, credentials: "include" });
+}
+
+/** Standard JSON headers for credentialed API calls. */
+export function credentialedHeaders(extraHeaders = {}) {
   return {
-    ...(userId ? { "X-User-Id": String(userId) } : {}),
+    "Content-Type": "application/json",
     ...extraHeaders,
   };
 }
 
-/** Alias used by some API modules. */
-export function getAuthHeaders(extraHeaders = {}) {
-  return {
-    "Content-Type": "application/json",
-    ...authHeaders(extraHeaders),
-  };
+/** @deprecated Use credentialedHeaders — kept for call-site compat during migration. */
+export const getAuthHeaders = credentialedHeaders;
+
+/** @deprecated No-op — cookies are sent automatically. */
+export function authHeaders(extraHeaders = {}) {
+  return extraHeaders;
 }

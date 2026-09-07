@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronDown, UserCircle, LogOut } from "lucide-react";
-import { setSelectedUserId } from "@/services/auth";
+import { logout } from "@/services/auth";
 
 export default function UserMenu({ user = {}, onOpen }) {
   const router = useRouter();
   const initials = (user.name || user.email || "U").slice(0, 1).toUpperCase();
 
-  const handleLogout = () => {
-    setSelectedUserId(null);
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 

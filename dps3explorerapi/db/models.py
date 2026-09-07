@@ -40,6 +40,7 @@ class User(Base):
     id              = Column(BigInteger, Identity(start=1), primary_key=True)
     username        = Column(String(255), nullable=False)
     email           = Column(String(255), nullable=False, unique=True, index=True)
+    google_subject  = Column(String(255), nullable=True, unique=True, index=True)
     role            = Column(Integer, nullable=False, server_default=text("2"))
     organization_id = Column(BigInteger, ForeignKey(f"{SCHEMA}.organizations.id", ondelete="SET NULL"), nullable=True, index=True)
     active          = Column(Boolean, nullable=False, server_default=text("true"))

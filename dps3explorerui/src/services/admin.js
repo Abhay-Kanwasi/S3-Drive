@@ -1,4 +1,4 @@
-import { getAuthHeaders } from "@/services/auth";
+import { getAuthHeaders, apiFetch } from "@/services/auth";
 
 const API_HOSTNAME = process.env.NEXT_PUBLIC_HOSTNAME;
 const adminHostname = `${API_HOSTNAME}/explorer/admin`;
@@ -38,7 +38,7 @@ function normalizeOrg(org) {
 }
 
 export const getAdminMe = async () => {
-  const response = await fetch(`${adminHostname}/me`, {
+  const response = await apiFetch(`${adminHostname}/me`, {
     headers: getAuthHeaders(),
   });
   await throwIfNotOk(response, "Failed to fetch admin profile");
@@ -49,11 +49,11 @@ export const getAdminMe = async () => {
 
 /** Owned organizations (onboarded). Falls back to legacy /admin/orgs path. */
 export const getOrganizations = async () => {
-  let response = await fetch(`${adminHostname}/organizations`, {
+  let response = await apiFetch(`${adminHostname}/organizations`, {
     headers: getAuthHeaders(),
   });
   if (response.status === 404) {
-    response = await fetch(`${adminHostname}/orgs`, {
+    response = await apiFetch(`${adminHostname}/orgs`, {
       headers: getAuthHeaders(),
     });
   }
@@ -66,7 +66,7 @@ export const getOrganizations = async () => {
 export const getOnboardedOrgs = getOrganizations;
 
 export const getAvailableBuckets = async () => {
-  const response = await fetch(`${adminHostname}/available-buckets`, {
+  const response = await apiFetch(`${adminHostname}/available-buckets`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch buckets");
@@ -91,13 +91,13 @@ export const createOrganization = async ({
     // compat for APIs that still expect subscription_id
     subscription_id: key,
   };
-  let response = await fetch(`${adminHostname}/organizations`, {
+  let response = await apiFetch(`${adminHostname}/organizations`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
   if (response.status === 404) {
-    response = await fetch(`${adminHostname}/orgs/onboard`, {
+    response = await apiFetch(`${adminHostname}/orgs/onboard`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -127,7 +127,7 @@ export const getAdminUsers = async ({ q = "", orgId, page = 1, pageSize = 50 } =
     page_size: String(pageSize),
   });
   if (orgId) params.set("org_id", String(orgId));
-  const response = await fetch(`${adminHostname}/users?${params}`, {
+  const response = await apiFetch(`${adminHostname}/users?${params}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch users");
@@ -135,7 +135,7 @@ export const getAdminUsers = async ({ q = "", orgId, page = 1, pageSize = 50 } =
 };
 
 export const getAdminUserDetail = async (userId) => {
-  const response = await fetch(`${adminHostname}/users/${userId}`, {
+  const response = await apiFetch(`${adminHostname}/users/${userId}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch user detail");
@@ -163,7 +163,7 @@ export const createAdminUser = async ({
   organization_id,
   active = true,
 }) => {
-  const response = await fetch(`${adminHostname}/users`, {
+  const response = await apiFetch(`${adminHostname}/users`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({
@@ -181,7 +181,7 @@ export const createAdminUser = async ({
 export const updateAdminUser = async (userId, patch) => {
   const body = { ...patch };
   if (body.role != null) body.role = normalizeRolePayload(body.role);
-  const response = await fetch(`${adminHostname}/users/${userId}`, {
+  const response = await apiFetch(`${adminHostname}/users/${userId}`, {
     method: "PATCH",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -191,7 +191,7 @@ export const updateAdminUser = async (userId, patch) => {
 };
 
 export const deactivateAdminUser = async (userId) => {
-  const response = await fetch(`${adminHostname}/users/${userId}/deactivate`, {
+  const response = await apiFetch(`${adminHostname}/users/${userId}/deactivate`, {
     method: "POST",
     headers: getAuthHeaders(),
   });
@@ -203,7 +203,7 @@ export const deactivateAdminUser = async (userId) => {
 };
 
 export const reactivateAdminUser = async (userId) => {
-  const response = await fetch(`${adminHostname}/users/${userId}/reactivate`, {
+  const response = await apiFetch(`${adminHostname}/users/${userId}/reactivate`, {
     method: "POST",
     headers: getAuthHeaders(),
   });
@@ -215,7 +215,7 @@ export const reactivateAdminUser = async (userId) => {
 };
 
 export const deactivateAccount = async (userId) => {
-  const response = await fetch(`${adminHostname}/users/${userId}/account/deactivate`, {
+  const response = await apiFetch(`${adminHostname}/users/${userId}/account/deactivate`, {
     method: "POST",
     headers: getAuthHeaders(),
   });
@@ -224,7 +224,7 @@ export const deactivateAccount = async (userId) => {
 };
 
 export const reactivateAccount = async (userId) => {
-  const response = await fetch(`${adminHostname}/users/${userId}/account/reactivate`, {
+  const response = await apiFetch(`${adminHostname}/users/${userId}/account/reactivate`, {
     method: "POST",
     headers: getAuthHeaders(),
   });
@@ -235,7 +235,7 @@ export const reactivateAccount = async (userId) => {
 export const getAdminUserStats = async (orgId) => {
   const params = new URLSearchParams();
   if (orgId) params.set("org_id", String(orgId));
-  const response = await fetch(`${adminHostname}/users/stats?${params}`, {
+  const response = await apiFetch(`${adminHostname}/users/stats?${params}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch user stats");
@@ -245,7 +245,7 @@ export const getAdminUserStats = async (orgId) => {
 export const exportUsersCSV = async ({ q = "", orgId } = {}) => {
   const params = new URLSearchParams({ q });
   if (orgId) params.set("org_id", String(orgId));
-  const response = await fetch(`${adminHostname}/users/export?${params}`, {
+  const response = await apiFetch(`${adminHostname}/users/export?${params}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to export users");
@@ -267,7 +267,7 @@ export const getAuditEvents = async ({ orgId, userId, eventType, dateFrom, dateT
   if (eventType) params.set("event_type", eventType);
   if (dateFrom) params.set("date_from", dateFrom);
   if (dateTo) params.set("date_to", dateTo);
-  const response = await fetch(`${adminHostname}/audit?${params}`, {
+  const response = await apiFetch(`${adminHostname}/audit?${params}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch audit events");
@@ -281,7 +281,7 @@ export const exportAuditCSV = async ({ orgId, userId, eventType, dateFrom, dateT
   if (eventType) params.set("event_type", eventType);
   if (dateFrom) params.set("date_from", dateFrom);
   if (dateTo) params.set("date_to", dateTo);
-  const response = await fetch(`${adminHostname}/audit/export?${params}`, {
+  const response = await apiFetch(`${adminHostname}/audit/export?${params}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to export audit log");
@@ -297,7 +297,7 @@ export const exportAuditCSV = async ({ orgId, userId, eventType, dateFrom, dateT
 // ─── Group Management ────────────────────────────────────────────────────
 
 export const getGroups = async (orgId) => {
-  const response = await fetch(`${adminHostname}/groups?org_id=${orgId}`, {
+  const response = await apiFetch(`${adminHostname}/groups?org_id=${orgId}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch groups");
@@ -305,7 +305,7 @@ export const getGroups = async (orgId) => {
 };
 
 export const getGroupDetail = async (groupId) => {
-  const response = await fetch(`${adminHostname}/groups/${groupId}`, {
+  const response = await apiFetch(`${adminHostname}/groups/${groupId}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch group");
@@ -313,7 +313,7 @@ export const getGroupDetail = async (groupId) => {
 };
 
 export const createGroup = async ({ org_id, name, member_user_ids = [] }) => {
-  const response = await fetch(`${adminHostname}/groups`, {
+  const response = await apiFetch(`${adminHostname}/groups`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ org_id, name, member_user_ids }),
@@ -326,7 +326,7 @@ export const createGroup = async ({ org_id, name, member_user_ids = [] }) => {
 };
 
 export const renameGroup = async (groupId, name) => {
-  const response = await fetch(`${adminHostname}/groups/${groupId}`, {
+  const response = await apiFetch(`${adminHostname}/groups/${groupId}`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify({ name }),
@@ -340,7 +340,7 @@ export const renameGroup = async (groupId, name) => {
 
 export const getOtpApprovers = async (orgId) => {
   const params = new URLSearchParams({ org_id: String(orgId) });
-  const response = await fetch(`${adminHostname}/otp/approvers?${params}`, {
+  const response = await apiFetch(`${adminHostname}/otp/approvers?${params}`, {
     headers: getAuthHeaders(),
   });
   await throwIfNotOk(response, "Failed to load OTP approvers");
@@ -350,7 +350,7 @@ export const getOtpApprovers = async (orgId) => {
 export const sendOtp = async ({ purpose = "sensitive_action", recipient_user_id } = {}) => {
   const body = { purpose };
   if (recipient_user_id != null) body.recipient_user_id = recipient_user_id;
-  const response = await fetch(`${adminHostname}/otp/send`, {
+  const response = await apiFetch(`${adminHostname}/otp/send`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -360,7 +360,7 @@ export const sendOtp = async ({ purpose = "sensitive_action", recipient_user_id 
 };
 
 export const deleteGroup = async (groupId) => {
-  const response = await fetch(`${adminHostname}/groups/${groupId}`, {
+  const response = await apiFetch(`${adminHostname}/groups/${groupId}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -374,7 +374,7 @@ export const deleteGroup = async (groupId) => {
 // ─── Members ─────────────────────────────────────────────────────────────
 
 export const addMembers = async (groupId, userIds) => {
-  const response = await fetch(`${adminHostname}/groups/${groupId}/members`, {
+  const response = await apiFetch(`${adminHostname}/groups/${groupId}/members`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ user_ids: userIds }),
@@ -387,7 +387,7 @@ export const addMembers = async (groupId, userIds) => {
 };
 
 export const removeMember = async (groupId, userId) => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${adminHostname}/groups/${groupId}/members/${userId}`,
     { method: "DELETE", headers: getAuthHeaders() },
   );
@@ -401,7 +401,7 @@ export const removeMember = async (groupId, userId) => {
 // ─── Folder Grants ───────────────────────────────────────────────────────
 
 export const getGrants = async (groupId) => {
-  const response = await fetch(`${adminHostname}/groups/${groupId}/grants`, {
+  const response = await apiFetch(`${adminHostname}/groups/${groupId}/grants`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch grants");
@@ -409,7 +409,7 @@ export const getGrants = async (groupId) => {
 };
 
 export const createGrant = async (groupId, { prefix, access_level }) => {
-  const response = await fetch(`${adminHostname}/groups/${groupId}/grants`, {
+  const response = await apiFetch(`${adminHostname}/groups/${groupId}/grants`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ prefix, access_level }),
@@ -422,7 +422,7 @@ export const createGrant = async (groupId, { prefix, access_level }) => {
 };
 
 export const removeGrant = async (groupId, grantId) => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${adminHostname}/groups/${groupId}/grants/${grantId}`,
     { method: "DELETE", headers: getAuthHeaders() },
   );
@@ -437,7 +437,7 @@ export const removeGrant = async (groupId, grantId) => {
 
 export const searchOrgUsers = async (orgId, search = "", page = 1, pageSize = 50) => {
   const params = new URLSearchParams({ search, page: String(page), page_size: String(pageSize) });
-  const response = await fetch(
+  const response = await apiFetch(
     `${adminHostname}/orgs/${orgId}/users?${params}`,
     { headers: getAuthHeaders() },
   );
@@ -447,7 +447,7 @@ export const searchOrgUsers = async (orgId, search = "", page = 1, pageSize = 50
 
 export const getFolderTree = async (orgId, prefix = "") => {
   const params = new URLSearchParams({ prefix });
-  const response = await fetch(
+  const response = await apiFetch(
     `${adminHostname}/orgs/${orgId}/folder-tree?${params}`,
     { headers: getAuthHeaders() },
   );
@@ -458,7 +458,7 @@ export const getFolderTree = async (orgId, prefix = "") => {
 // ─── Platform Settings ──────────────────────────────────────────────────
 
 export const getPlatformSettings = async () => {
-  const response = await fetch(`${adminHostname}/settings`, {
+  const response = await apiFetch(`${adminHostname}/settings`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) throw new Error("Failed to fetch platform settings");
@@ -469,7 +469,7 @@ export const updatePlatformSettings = async ({ allowed_extensions, max_upload_by
   const body = {};
   if (allowed_extensions !== undefined) body.allowed_extensions = allowed_extensions;
   if (max_upload_bytes !== undefined) body.max_upload_bytes = max_upload_bytes;
-  const response = await fetch(`${adminHostname}/settings`, {
+  const response = await apiFetch(`${adminHostname}/settings`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -484,7 +484,7 @@ export const updatePlatformSettings = async ({ allowed_extensions, max_upload_by
 // ─── Un-onboard (4-eyes) ─────────────────────────────────────────────────
 
 export const getUnonboardApprovers = async () => {
-  const response = await fetch(`${adminHostname}/unonboard/approvers`, {
+  const response = await apiFetch(`${adminHostname}/unonboard/approvers`, {
     headers: getAuthHeaders(),
   });
   await throwIfNotOk(response, "Failed to load approvers");
@@ -492,7 +492,7 @@ export const getUnonboardApprovers = async () => {
 };
 
 export const sendUnonboardOtp = async (orgId) => {
-  const response = await fetch(`${adminHostname}/orgs/${orgId}/unonboard/send-otp`, {
+  const response = await apiFetch(`${adminHostname}/orgs/${orgId}/unonboard/send-otp`, {
     method: "POST",
     headers: getAuthHeaders(),
   });
@@ -501,7 +501,7 @@ export const sendUnonboardOtp = async (orgId) => {
 };
 
 export const submitUnonboardRequest = async (orgId, { approver_user_id, otp_code }) => {
-  const response = await fetch(`${adminHostname}/orgs/${orgId}/unonboard/request`, {
+  const response = await apiFetch(`${adminHostname}/orgs/${orgId}/unonboard/request`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ approver_user_id, otp_code }),
@@ -514,7 +514,7 @@ export const submitUnonboardRequest = async (orgId, { approver_user_id, otp_code
 
 export const getApprovalReview = async ({ id, token, action }) => {
   const params = new URLSearchParams({ id: String(id), token, action });
-  const response = await fetch(`${adminHostname}/approval/review?${params}`, {
+  const response = await apiFetch(`${adminHostname}/approval/review?${params}`, {
     headers: getAuthHeaders(),
   });
   await throwIfNotOk(response, "Failed to load approval");
@@ -522,7 +522,7 @@ export const getApprovalReview = async ({ id, token, action }) => {
 };
 
 export const submitApprovalDecision = async ({ id, token, action }) => {
-  const response = await fetch(`${adminHostname}/approval/respond`, {
+  const response = await apiFetch(`${adminHostname}/approval/respond`, {
     method: "POST",
     headers: { ...getAuthHeaders(), Accept: "application/json" },
     body: JSON.stringify({ id, token, action }),
