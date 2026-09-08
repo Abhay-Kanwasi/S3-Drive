@@ -34,6 +34,28 @@ export async function googleLogin(credential) {
   return response.json();
 }
 
+export async function getOnboardOrgs() {
+  const response = await fetch(`${authBase}/orgs`, { credentials: "include" });
+  if (!response.ok) throw new Error("Failed to load organizations");
+  return response.json();
+}
+
+export async function submitOnboarding({ onboard_token, username, organization_id }) {
+  const response = await fetch(`${authBase}/onboard`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ onboard_token, username, organization_id: organization_id || null }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const error = new Error(err.detail || "Onboarding failed");
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
 /** Rotate the access token using the refresh cookie. */
 export async function refreshSession() {
   const response = await fetch(`${authBase}/refresh`, {

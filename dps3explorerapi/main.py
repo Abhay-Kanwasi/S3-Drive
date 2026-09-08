@@ -35,15 +35,37 @@ app.add_middleware(
 )
 
 
+# Endpoints exempt from CSRF — unauthenticated POST flows
+_CSRF_EXEMPT_PATHS = {
+    f"{settings.API_V1_STR}/auth/google",
+    f"{settings.API_V1_STR}/auth/onboard",
+}
+
+
 @app.middleware("http")
 async def csrf_protection(request: Request, call_next):
-    unsafe = request.method in {"POST", "PUT", "PATCH", "DELETE"}
-    login_request = request.url.path.endswith("/auth/google")
-    if unsafe and not login_request and settings.ENV != "test":
-        cookie_token = request.cookies.get("s3exp_csrf")
-        header_token = request.headers.get(settings.CSRF_HEADER_NAME)
-        if not cookie_token or not header_token or not secrets.compare_digest(cookie_token, header_token):
-            return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+    if settings.ENV == "test":
+        return await call_next(request)
+
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return await call_next(request)
+
+    if request.url.path in _CSRF_EXEMPT_PATHS:
+        return await call_next(request)
+
+    cookie_token = request.cookies.get("s3exp_csrf")
+    header_token = request.headers.get(settings.CSRF_HEADER_NAME)
+
+    if (
+        not cookie_token
+        or not header_token
+        or not secrets.compare_digest(cookie_token, header_token)
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "CSRF validation failed"},
+        )
+
     return await call_next(request)
 
 

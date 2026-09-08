@@ -83,6 +83,16 @@ def _me_url():
     return f"{settings.API_V1_STR}/auth/me"
 
 
+def _orgs_url():
+    from core.config import settings
+    return f"{settings.API_V1_STR}/auth/orgs"
+
+
+def _onboard_url():
+    from core.config import settings
+    return f"{settings.API_V1_STR}/auth/onboard"
+
+
 # ── Google login ─────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -98,11 +108,61 @@ async def test_google_login_links_and_returns_user(auth_client):
 
 
 @pytest.mark.asyncio
-async def test_google_login_unknown_user_rejected(auth_client):
+async def test_google_login_unknown_user_requires_onboarding(auth_client):
     with patch("api.endpoints.auth.id_token.verify_oauth2_token", return_value=UNKNOWN_CLAIMS), \
          patch("core.config.settings.GOOGLE_CLIENT_ID", "fake-client-id"):
         resp = await auth_client.post(_google_login_url(), json={"credential": "fake"})
-    assert resp.status_code == 401
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["needs_onboarding"] is True
+    assert data["email"] == "nobody@test.com"
+    assert "onboard_token" in data
+
+
+@pytest.mark.asyncio
+async def test_onboard_user_creates_session(auth_client):
+    with patch("api.endpoints.auth.id_token.verify_oauth2_token", return_value=UNKNOWN_CLAIMS), \
+         patch("core.config.settings.GOOGLE_CLIENT_ID", "fake-client-id"):
+        first = await auth_client.post(_google_login_url(), json={"credential": "fake"})
+    token = first.json()["onboard_token"]
+
+    resp = await auth_client.post(
+        _onboard_url(),
+        json={"onboard_token": token, "username": "New User", "organization_id": None},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["needs_onboarding"] is False
+    assert data["email"] == "nobody@test.com"
+    assert ACCESS_COOKIE in resp.cookies
+    assert REFRESH_COOKIE in resp.cookies
+
+
+@pytest.mark.asyncio
+async def test_onboard_user_can_see_guest_org(auth_client):
+    with patch("api.endpoints.auth.id_token.verify_oauth2_token", return_value=UNKNOWN_CLAIMS), \
+         patch("core.config.settings.GOOGLE_CLIENT_ID", "fake-client-id"):
+        first = await auth_client.post(_google_login_url(), json={"credential": "fake"})
+    token = first.json()["onboard_token"]
+
+    onboard = await auth_client.post(
+        _onboard_url(),
+        json={"onboard_token": token, "username": "New User", "organization_id": None},
+    )
+    assert onboard.status_code == 200
+
+    from core.config import settings
+    orgs = await auth_client.get(f"{settings.API_V1_STR}/browse/orgs")
+    assert orgs.status_code == 200
+    assert any(org["org_key"] == "guest_organization" for org in orgs.json())
+
+
+@pytest.mark.asyncio
+async def test_orgs_endpoint_lists_active_orgs(auth_client):
+    resp = await auth_client.get(_orgs_url())
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
 
 
 @pytest.mark.asyncio
