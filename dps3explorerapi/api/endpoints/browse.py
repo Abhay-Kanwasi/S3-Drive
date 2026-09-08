@@ -55,6 +55,23 @@ def _accessible_orgs_for_user(user: CurrentUser, db: Session) -> list:
                 "org_key": org.org_key,
             })
 
+    # Onboarded users are assigned directly to an organization and may not
+    # have a group membership yet (including users assigned to the guest org).
+    if user.organization_id:
+        direct_org = db.query(Organization).filter(
+            Organization.id == user.organization_id, Organization.is_active == True
+        ).first()
+        if direct_org and direct_org.id not in seen_org_ids:
+            seen_org_ids.add(direct_org.id)
+            response.append({
+                "folder_name": direct_org.org_name,
+                "folder_path": "",
+                "bucket_name": direct_org.bucket_name,
+                "org_id": direct_org.id,
+                "org_name": direct_org.org_name,
+                "org_key": direct_org.org_key,
+            })
+
     if user.role_id in ADMIN_ROLE_IDS:
         if user.role_id in GLOBAL_ADMIN_ROLE_IDS:
             admin_orgs = db.query(Organization).filter(Organization.is_active == True).all()

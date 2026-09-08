@@ -29,7 +29,16 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await googleLogin(credentialResponse.credential);
+      const data = await googleLogin(credentialResponse.credential);
+      if (data.needs_onboarding) {
+        const params = new URLSearchParams({
+          token: data.onboard_token,
+          email: data.email,
+          name: data.name || "",
+        });
+        router.replace(`/onboard?${params.toString()}`);
+        return;
+      }
       router.replace("/");
     } catch (err) {
       setError(

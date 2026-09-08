@@ -1,19 +1,36 @@
 "use client";
 import { createContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/hooks/useTheme";
 import { getSessionUser } from "@/services/auth";
 
 export const ApplicationContext = createContext(null);
 
+const PUBLIC_AUTH_ROUTES = new Set(["/login", "/onboard"]);
+
 export function ContextProvider({ children }) {
+  const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const [folder, setFolder] = useState("");
   const [userid, setUserid] = useState();
   const [username, setUsername] = useState();
   const [sessionUser, setSessionUser] = useState(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const isPublicAuthRoute = pathname ? PUBLIC_AUTH_ROUTES.has(pathname) : false;
 
   useEffect(() => {
+    if (isPublicAuthRoute) {
+      setSessionUser(null);
+      setUserid(undefined);
+      setUsername(undefined);
+      setIsAdmin(false);
+      setSessionLoading(false);
+      return;
+    }
+
+    setSessionLoading(true);
     getSessionUser()
       .then((user) => {
         setSessionUser(user);
@@ -23,7 +40,7 @@ export function ContextProvider({ children }) {
       })
       .catch(() => setSessionUser(null))
       .finally(() => setSessionLoading(false));
-  }, []);
+  }, [isPublicAuthRoute]);
 
   const [path, setPath] = useState("");
   const [basePath, setBasePath] = useState("");
@@ -43,7 +60,6 @@ export function ContextProvider({ children }) {
   const [contextlastmod, setContextlastmod] = useState("");
   const [contextextension, setContextextension] = useState("");
   const [contextauthor, setContextauthor] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const [currentOrg, setCurrentOrg] = useState(null);
   const [tag, setTag] = useState("");
   const [contexterror, setContexterror] = useState("");
